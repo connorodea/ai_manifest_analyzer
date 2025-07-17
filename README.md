@@ -97,7 +97,7 @@ Before you begin, ensure you have the following installed:
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/your-username/ai-manifest-analyzer-pro.git
+git clone https://github.com/connorodea/ai-manifest-analyzer-pro.git
 cd ai-manifest-analyzer-pro
 ```
 
