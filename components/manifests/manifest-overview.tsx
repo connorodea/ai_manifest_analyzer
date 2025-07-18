@@ -4,8 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { CheckCircle, TrendingUp, TrendingDown } from "lucide-react"
-import { Line, LineChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid } from "recharts"
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
+// import { Line, LineChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid } from "recharts"
+// import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 
 // Mock data for demonstration
 const mockCategoryData = [
@@ -139,29 +139,17 @@ export function ManifestOverview({ manifestId }: ManifestOverviewProps) {
 
       <Card className="col-span-full">
         <CardHeader>
-          <CardTitle>Market Trends</CardTitle>
-          <CardDescription>Historical price trends for main categories</CardDescription>
+          <CardTitle>Value by Category</CardTitle>
+          <CardDescription>Estimated values across different categories</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-[300px]">
-            <ChartContainer
-              config={{
-                value: {
-                  label: "Market Value",
-                  color: "hsl(var(--chart-1))",
-                },
-              }}
-            >
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={mockTrendData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Line type="monotone" dataKey="value" stroke="var(--color-value)" strokeWidth={2} />
-                </LineChart>
-              </ResponsiveContainer>
-            </ChartContainer>
+          <div className="space-y-4">
+            {mockValueData.map((item) => (
+              <div key={item.category} className="flex items-center justify-between">
+                <span className="font-medium">{item.category}</span>
+                <span className="text-lg font-bold">{formatCurrency(item.value)}</span>
+              </div>
+            ))}
           </div>
         </CardContent>
       </Card>

@@ -100,27 +100,40 @@ export function ManifestUploader() {
     setIsUploading(true)
 
     try {
+      // Convert file to text content for processing
+      const fileContent = await file.text()
+
       const formData = new FormData()
       formData.append("file", file)
       formData.append("name", manifestName)
+      formData.append("content", fileContent)
+      formData.append("type", file.type)
 
       const result = await uploadManifest(formData)
 
-      toast({
-        title: "Upload successful",
-        description: "Your manifest is now being analyzed.",
-      })
+      if (result.success) {
+        toast({
+          title: "Upload successful",
+          description: "Your manifest is now being analyzed.",
+        })
 
-      // Reset form
-      setFile(null)
-      setManifestName("")
+        // Reset form
+        setFile(null)
+        setManifestName("")
 
-      // Redirect to the manifest detail page
-      // window.location.href = `/dashboard/manifests/${result.id}`
+        // Optional: Redirect to the manifest detail page
+        // if (result.id) {
+        //   window.location.href = `/dashboard/manifests/${result.id}`
+        // }
+      } else {
+        throw new Error(result.error || "Upload failed")
+      }
     } catch (error) {
+      console.error("Upload error:", error)
       toast({
         title: "Upload failed",
-        description: "There was an error uploading your manifest. Please try again.",
+        description:
+          error instanceof Error ? error.message : "There was an error uploading your manifest. Please try again.",
         variant: "destructive",
       })
     } finally {

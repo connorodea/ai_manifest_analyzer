@@ -14,6 +14,7 @@ import {
   Zap,
   Star,
 } from "lucide-react"
+import Link from "next/link"
 
 export default function LandingPage() {
   return (
@@ -34,7 +35,14 @@ export default function LandingPage() {
             FAQ
           </a>
         </nav>
-        <Button>Get Started</Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" asChild>
+            <Link href="/auth/login">Sign In</Link>
+          </Button>
+          <Button asChild>
+            <Link href="/auth/register">Get Started</Link>
+          </Button>
+        </div>
       </header>
 
       <main className="flex-1">
@@ -48,7 +56,9 @@ export default function LandingPage() {
               categorization, market valuation, and risk assessment to maximize your returns.
             </p>
             <div className="mt-8 flex justify-center gap-4">
-              <Button size="lg">Upload Manifest for Free</Button>
+              <Button size="lg" asChild>
+                <Link href="/auth/register">Upload Manifest for Free</Link>
+              </Button>
               <Button size="lg" variant="outline">
                 Request a Demo
               </Button>

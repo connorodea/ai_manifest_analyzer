@@ -1,6 +1,7 @@
 import type React from "react"
 import { UserNav } from "@/components/dashboard/user-nav"
 import { MainNav } from "@/components/dashboard/main-nav"
+import { ErrorBoundary } from "@/components/error-boundary"
 
 interface DashboardShellProps {
   children: React.ReactNode
@@ -15,7 +16,9 @@ export default function DashboardShell({ children }: DashboardShellProps) {
           <UserNav />
         </div>
       </header>
-      <main className="flex-1 container py-8">{children}</main>
+      <main className="flex-1 container py-8">
+        <ErrorBoundary>{children}</ErrorBoundary>
+      </main>
     </div>
   )
 }

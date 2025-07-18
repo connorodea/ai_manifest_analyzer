@@ -1,28 +1,58 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { verifySession } from "@/lib/auth/session"
 
 export async function uploadManifest(formData: FormData) {
   try {
-    // In a real app, we would:
-    // 1. Upload the file to storage (S3, Cloudflare R2, etc.)
-    // 2. Create a database record for the manifest
-    // 3. Trigger the AI analysis pipeline
+    // Verify user is authenticated
+    const session = await verifySession()
 
     const file = formData.get("file") as File
     const name = formData.get("name") as string
+    const content = formData.get("content") as string
+    const type = formData.get("type") as string
 
-    // Simulate processing delay
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    if (!file || !name || !content) {
+      throw new Error("Missing required fields")
+    }
 
-    // Generate a random ID for the manifest
-    const manifestId = `manifest-${Math.random().toString(36).substring(2, 10)}`
+    // Validate file type
+    const validTypes = [
+      "text/csv",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/pdf",
+    ]
 
-    // In a real app, we would store the file and create a database record
+    if (!validTypes.includes(type)) {
+      throw new Error("Unsupported file type. Please upload a CSV, Excel, or PDF file.")
+    }
 
-    // Trigger the AI analysis pipeline
-    // This would typically be done asynchronously in a real app
-    // For demo purposes, we'll just return a success response
+    // Generate a unique ID for the manifest
+    const manifestId = `manifest-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`
+
+    // In a real app, you would:
+    // 1. Save the file to cloud storage
+    // 2. Create a database record with userId: session.userId
+    // 3. Queue the analysis job
+
+    // For demo purposes, we'll simulate processing
+    console.log(`Processing manifest: ${name} (${manifestId}) for user: ${session.userId}`)
+    console.log(`File type: ${type}, Size: ${file.size} bytes`)
+    console.log(`Content preview: ${content.substring(0, 200)}...`)
+
+    // Simulate async processing
+    await new Promise((resolve) => setTimeout(resolve, 2000))
+
+    // Trigger analysis (in real app, this would be queued)
+    try {
+      // We could trigger the analysis here, but for demo we'll just simulate success
+      console.log("Analysis would be triggered here")
+    } catch (analysisError) {
+      console.error("Analysis error:", analysisError)
+      // Don't fail the upload if analysis fails - it can be retried
+    }
 
     revalidatePath("/dashboard")
     revalidatePath("/dashboard/manifests")
@@ -35,7 +65,10 @@ export async function uploadManifest(formData: FormData) {
     }
   } catch (error) {
     console.error("Error uploading manifest:", error)
-    throw new Error("Failed to upload manifest")
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to upload manifest",
+    }
   }
 }
 
