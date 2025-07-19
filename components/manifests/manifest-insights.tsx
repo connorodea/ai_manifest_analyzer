@@ -1,16 +1,61 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Lightbulb, TrendingUp, AlertTriangle, DollarSign, Calendar, ShoppingBag, BarChart2, Zap } from "lucide-react"
+import { Lightbulb, TrendingUp, AlertTriangle, DollarSign, BarChart2, Zap, Loader2 } from "lucide-react"
+import { getManifestAnalysis } from "@/lib/actions/manifest-actions"
+import type { ManifestAnalysisResult } from "@/lib/ai/analysis-service"
 
 interface ManifestInsightsProps {
   manifestId: string
 }
 
 export function ManifestInsights({ manifestId }: ManifestInsightsProps) {
+  const [analysis, setAnalysis] = useState<ManifestAnalysisResult | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchAnalysis() {
+      try {
+        const result = await getManifestAnalysis(manifestId)
+        setAnalysis(result)
+      } catch (error) {
+        console.error("Error fetching analysis:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchAnalysis()
+  }, [manifestId])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Loading AI insights...</span>
+      </div>
+    )
+  }
+
+  if (!analysis) {
+    return (
+      <div className="text-center p-8">
+        <p>No analysis data available for this manifest.</p>
+      </div>
+    )
+  }
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+    }).format(value)
+  }
+
   return (
     <div className="space-y-6">
       <Card>
@@ -19,19 +64,53 @@ export function ManifestInsights({ manifestId }: ManifestInsightsProps) {
             <Lightbulb className="h-5 w-5 text-primary" />
             <CardTitle>AI-Generated Insights</CardTitle>
           </div>
-          <CardDescription>Key insights and recommendations based on AI analysis</CardDescription>
+          <CardDescription>Comprehensive analysis and recommendations from our AI system</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <Alert>
             <Zap className="h-4 w-4" />
             <AlertTitle>Executive Summary</AlertTitle>
-            <AlertDescription>
-              This manifest contains 87 items with an estimated total value of $12,450.75. The majority (48.3%) are
-              electronics items, with particularly strong value in Apple products and gaming consoles. Overall risk is
-              low, with 71% of items having low risk scores. Expected profit margin is approximately 42% based on
-              current market conditions.
-            </AlertDescription>
+            <AlertDescription>{analysis.insights.summary}</AlertDescription>
           </Alert>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <h4 className="font-semibold">Key Metrics</h4>
+              <div className="space-y-1 text-sm">
+                <div className="flex justify-between">
+                  <span>Total Items:</span>
+                  <span className="font-medium">{analysis.totalItems}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Total Value:</span>
+                  <span className="font-medium">{formatCurrency(analysis.estimatedTotalValue)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Avg Item Value:</span>
+                  <span className="font-medium">
+                    {formatCurrency(analysis.estimatedTotalValue / analysis.totalItems)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Processing Time:</span>
+                  <span className="font-medium">{(analysis.processingTime / 1000).toFixed(1)}s</span>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <h4 className="font-semibold">AI Confidence</h4>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline">Overall Score</Badge>
+                  <span className="font-medium">{Math.round(analysis.aiConfidenceScore * 100)}%</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline">Profitability</Badge>
+                  <span className="font-medium">{analysis.insights.profitabilityScore}/100</span>
+                </div>
+              </div>
+            </div>
+          </div>
 
           <Tabs defaultValue="opportunities">
             <TabsList className="grid w-full grid-cols-3">
@@ -43,39 +122,17 @@ export function ManifestInsights({ manifestId }: ManifestInsightsProps) {
               <div className="rounded-lg border p-4 space-y-4">
                 <div className="flex items-center gap-2">
                   <TrendingUp className="h-5 w-5 text-green-500" />
-                  <h3 className="font-semibold">High-Value Opportunities</h3>
+                  <h3 className="font-semibold">Profit Opportunities</h3>
                 </div>
                 <ul className="space-y-3">
-                  <li className="flex items-start gap-2">
-                    <DollarSign className="h-5 w-5 text-green-500 mt-0.5" />
-                    <div>
-                      <p className="font-medium">Apple Products Premium</p>
-                      <p className="text-sm text-muted-foreground">
-                        The 12 Apple products in this manifest have an average 58% profit margin, significantly higher
-                        than the overall average.
-                      </p>
-                    </div>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Calendar className="h-5 w-5 text-green-500 mt-0.5" />
-                    <div>
-                      <p className="font-medium">Seasonal Opportunity</p>
-                      <p className="text-sm text-muted-foreground">
-                        Gaming consoles are showing increased demand (up 23% this month) as we approach the holiday
-                        season.
-                      </p>
-                    </div>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <ShoppingBag className="h-5 w-5 text-green-500 mt-0.5" />
-                    <div>
-                      <p className="font-medium">Bundle Potential</p>
-                      <p className="text-sm text-muted-foreground">
-                        Consider bundling the 8 pairs of headphones with smartphones to increase overall value by an
-                        estimated 15%.
-                      </p>
-                    </div>
-                  </li>
+                  {analysis.insights.opportunities.map((opportunity, index) => (
+                    <li key={index} className="flex items-start gap-2">
+                      <DollarSign className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm">{opportunity}</p>
+                      </div>
+                    </li>
+                  ))}
                 </ul>
               </div>
             </TabsContent>
@@ -86,36 +143,14 @@ export function ManifestInsights({ manifestId }: ManifestInsightsProps) {
                   <h3 className="font-semibold">Risk Factors</h3>
                 </div>
                 <ul className="space-y-3">
-                  <li className="flex items-start gap-2">
-                    <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5" />
-                    <div>
-                      <p className="font-medium">Authenticity Concerns</p>
-                      <p className="text-sm text-muted-foreground">
-                        7 items have high authenticity risk scores, particularly the designer clothing items which
-                        should be verified before resale.
-                      </p>
-                    </div>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <AlertTriangle className="h-5 w-5 text-yellow-500 mt-0.5" />
-                    <div>
-                      <p className="font-medium">Market Saturation</p>
-                      <p className="text-sm text-muted-foreground">
-                        The market for Bluetooth speakers is currently saturated, with prices down 12% in the last 30
-                        days.
-                      </p>
-                    </div>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <AlertTriangle className="h-5 w-5 text-yellow-500 mt-0.5" />
-                    <div>
-                      <p className="font-medium">Condition Issues</p>
-                      <p className="text-sm text-muted-foreground">
-                        18 items are in fair or poor condition, which may require refurbishment to achieve optimal
-                        value.
-                      </p>
-                    </div>
-                  </li>
+                  {analysis.insights.risks.map((risk, index) => (
+                    <li key={index} className="flex items-start gap-2">
+                      <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm">{risk}</p>
+                      </div>
+                    </li>
+                  ))}
                 </ul>
               </div>
             </TabsContent>
@@ -126,36 +161,14 @@ export function ManifestInsights({ manifestId }: ManifestInsightsProps) {
                   <h3 className="font-semibold">Market Analysis</h3>
                 </div>
                 <ul className="space-y-3">
-                  <li className="flex items-start gap-2">
-                    <TrendingUp className="h-5 w-5 text-green-500 mt-0.5" />
-                    <div>
-                      <p className="font-medium">Rising Categories</p>
-                      <p className="text-sm text-muted-foreground">
-                        Wireless earbuds (+18%), gaming accessories (+15%), and smart home devices (+12%) are showing
-                        strong upward price trends.
-                      </p>
-                    </div>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Calendar className="h-5 w-5 text-blue-500 mt-0.5" />
-                    <div>
-                      <p className="font-medium">Optimal Selling Window</p>
-                      <p className="text-sm text-muted-foreground">
-                        Based on historical data, the next 45 days represent the optimal selling window for 65% of the
-                        items in this manifest.
-                      </p>
-                    </div>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <ShoppingBag className="h-5 w-5 text-blue-500 mt-0.5" />
-                    <div>
-                      <p className="font-medium">Platform Recommendations</p>
-                      <p className="text-sm text-muted-foreground">
-                        Electronics items achieve 22% higher prices on specialized marketplaces compared to general
-                        platforms.
-                      </p>
-                    </div>
-                  </li>
+                  {analysis.insights.marketTrends.map((trend, index) => (
+                    <li key={index} className="flex items-start gap-2">
+                      <TrendingUp className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm">{trend}</p>
+                      </div>
+                    </li>
+                  ))}
                 </ul>
               </div>
             </TabsContent>
@@ -167,61 +180,57 @@ export function ManifestInsights({ manifestId }: ManifestInsightsProps) {
         <CardHeader>
           <div className="flex items-center gap-2">
             <DollarSign className="h-5 w-5 text-primary" />
-            <CardTitle>Value Optimization</CardTitle>
+            <CardTitle>AI Recommendations</CardTitle>
           </div>
-          <CardDescription>Recommendations to maximize the value of this manifest</CardDescription>
+          <CardDescription>Actionable recommendations to maximize your returns</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             <div className="rounded-lg border p-4">
-              <h3 className="font-semibold mb-2">Pricing Strategy</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Our AI analysis suggests the following pricing strategy to maximize returns:
-              </p>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <span className="font-medium">Premium Pricing</span>
-                    <p className="text-xs text-muted-foreground">For high-demand, excellent condition items</p>
-                  </div>
-                  <Badge>32 items</Badge>
-                </div>
-                <div className="flex justify-between items-center">
-                  <div>
-                    <span className="font-medium">Competitive Pricing</span>
-                    <p className="text-xs text-muted-foreground">For moderate-demand, good condition items</p>
-                  </div>
-                  <Badge>41 items</Badge>
-                </div>
-                <div className="flex justify-between items-center">
-                  <div>
-                    <span className="font-medium">Value Pricing</span>
-                    <p className="text-xs text-muted-foreground">For low-demand or poor condition items</p>
-                  </div>
-                  <Badge>14 items</Badge>
-                </div>
-              </div>
+              <h3 className="font-semibold mb-2">Strategic Recommendations</h3>
+              <ul className="space-y-2">
+                {analysis.insights.recommendations.map((recommendation, index) => (
+                  <li key={index} className="flex items-start gap-2">
+                    <div className="h-1.5 w-1.5 rounded-full bg-primary mt-2 flex-shrink-0" />
+                    <span className="text-sm">{recommendation}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
 
-            <div className="rounded-lg border p-4">
-              <h3 className="font-semibold mb-2">Refurbishment Opportunities</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                These items would benefit from minor repairs or refurbishment before selling:
-              </p>
-              <ul className="space-y-2 text-sm">
-                <li className="flex justify-between">
-                  <span>Samsung Galaxy S21 (cracked screen)</span>
-                  <span className="font-medium">+$120 value potential</span>
-                </li>
-                <li className="flex justify-between">
-                  <span>MacBook Pro (battery replacement)</span>
-                  <span className="font-medium">+$200 value potential</span>
-                </li>
-                <li className="flex justify-between">
-                  <span>Dyson Vacuum (filter replacement)</span>
-                  <span className="font-medium">+$75 value potential</span>
-                </li>
-              </ul>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="rounded-lg border p-4">
+                <h4 className="font-semibold mb-2">Risk Distribution</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span>Low Risk Items:</span>
+                    <Badge className="bg-green-500">{analysis.riskBreakdown.lowRisk}</Badge>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Medium Risk Items:</span>
+                    <Badge className="bg-yellow-500">{analysis.riskBreakdown.mediumRisk}</Badge>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>High Risk Items:</span>
+                    <Badge className="bg-red-500">{analysis.riskBreakdown.highRisk}</Badge>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-lg border p-4">
+                <h4 className="font-semibold mb-2">Category Performance</h4>
+                <div className="space-y-2 text-sm">
+                  {Object.entries(analysis.categoryBreakdown)
+                    .sort(([, a], [, b]) => b - a)
+                    .slice(0, 3)
+                    .map(([category, count]) => (
+                      <div key={category} className="flex justify-between">
+                        <span>{category}:</span>
+                        <Badge variant="outline">{count} items</Badge>
+                      </div>
+                    ))}
+                </div>
+              </div>
             </div>
           </div>
         </CardContent>

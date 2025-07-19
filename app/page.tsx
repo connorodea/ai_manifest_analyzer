@@ -284,7 +284,7 @@ export default function LandingPage() {
         </section>
       </main>
 
-      <footer className="bg-gray-800 text-white">
+      <footer className="bg-black text-white">
         <div className="container mx-auto py-12 px-4 sm:px-6 lg:px-8">
           <div className="md:flex md:justify-between">
             <div className="mb-6 md:mb-0">

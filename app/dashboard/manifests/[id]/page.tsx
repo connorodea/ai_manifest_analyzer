@@ -18,9 +18,12 @@ interface ManifestPageProps {
   params: {
     id: string
   }
+  searchParams: {
+    tab?: string
+  }
 }
 
-export default function ManifestPage({ params }: ManifestPageProps) {
+export default function ManifestPage({ params, searchParams }: ManifestPageProps) {
   // In a real app, we would fetch the manifest data here
   // For now, we'll use mock data
   const manifest = {
@@ -37,6 +40,8 @@ export default function ManifestPage({ params }: ManifestPageProps) {
     notFound()
   }
 
+  const defaultTab = searchParams.tab || "overview"
+
   return (
     <DashboardShell>
       <DashboardHeader heading={manifest.name}>
@@ -52,7 +57,7 @@ export default function ManifestPage({ params }: ManifestPageProps) {
         </div>
       </DashboardHeader>
 
-      <Tabs defaultValue="overview" className="space-y-4">
+      <Tabs defaultValue={defaultTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="items">Items</TabsTrigger>

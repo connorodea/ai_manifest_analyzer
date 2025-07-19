@@ -1,59 +1,83 @@
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Filter, MoreHorizontal, AlertTriangle, CheckCircle, AlertCircle } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Search, Filter, MoreHorizontal, AlertTriangle, CheckCircle, AlertCircle, Eye, Loader2 } from "lucide-react"
+import { getManifestItems } from "@/lib/actions/manifest-actions"
 
-// Mock data for demonstration
-const mockItems = Array.from({ length: 20 }).map((_, i) => ({
-  id: `item-${i + 1}`,
-  title: [
-    "Apple iPhone 13 Pro 256GB",
-    'Samsung 55" 4K Smart TV',
-    "Sony WH-1000XM4 Headphones",
-    "Dyson V11 Vacuum Cleaner",
-    "KitchenAid Stand Mixer",
-    "Nike Air Jordan 1 Size 10",
-    "Levi's 501 Jeans 32x32",
-    "LEGO Star Wars Set",
-    "Instant Pot Duo 6Qt",
-    "Patagonia Down Jacket M",
-  ][Math.floor(Math.random() * 10)],
-  category: ["Electronics", "Home & Kitchen", "Clothing", "Toys & Games", "Other"][Math.floor(Math.random() * 5)],
-  condition: ["Excellent", "Good", "Fair", "Poor", "Damaged"][Math.floor(Math.random() * 5)],
-  estimatedValue: Math.floor(Math.random() * 1000) + 50,
-  marketValue: Math.floor(Math.random() * 1200) + 50,
-  riskScore: Math.floor(Math.random() * 100) + 1,
-}))
+interface ManifestItem {
+  id: string
+  title: string
+  category: string
+  condition: string
+  estimatedValue: number
+  marketValue: number
+  riskScore: number
+  brand: string
+  model: string
+  originalDescription: string
+  riskFactors: string[]
+  aiReasoning: {
+    categorization: string
+    valuation: string
+    risk: string
+  }
+}
 
 interface ItemsTableProps {
   manifestId: string
 }
 
 export function ItemsTable({ manifestId }: ItemsTableProps) {
-  const [items, setItems] = useState(mockItems)
+  const [items, setItems] = useState<ManifestItem[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
-  const [filteredItems, setFilteredItems] = useState(items)
+  const [filteredItems, setFilteredItems] = useState<ManifestItem[]>([])
+  const [selectedItem, setSelectedItem] = useState<ManifestItem | null>(null)
 
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const term = e.target.value.toLowerCase()
-    setSearchTerm(term)
+  useEffect(() => {
+    async function fetchItems() {
+      try {
+        const result = await getManifestItems(manifestId)
+        setItems(result)
+        setFilteredItems(result)
+      } catch (error) {
+        console.error("Error fetching items:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
 
-    if (term === "") {
+    fetchItems()
+  }, [manifestId])
+
+  useEffect(() => {
+    if (searchTerm === "") {
       setFilteredItems(items)
     } else {
       setFilteredItems(
-        items.filter((item) => item.title.toLowerCase().includes(term) || item.category.toLowerCase().includes(term)),
+        items.filter(
+          (item) =>
+            item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            item.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            item.brand.toLowerCase().includes(searchTerm.toLowerCase()),
+        ),
       )
     }
-  }
+  }, [searchTerm, items])
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("en-US", {
@@ -84,15 +108,29 @@ export function ItemsTable({ manifestId }: ItemsTableProps) {
     }
   }
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Loading items...</span>
+      </div>
+    )
+  }
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Items Analysis</CardTitle>
-        <CardDescription>Detailed analysis of all items in this manifest</CardDescription>
+        <CardTitle>AI-Analyzed Items</CardTitle>
+        <CardDescription>Detailed AI analysis of all items in this manifest</CardDescription>
         <div className="flex items-center gap-2 mt-2">
           <div className="relative flex-1">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search items..." className="pl-8" value={searchTerm} onChange={handleSearch} />
+            <Input
+              placeholder="Search items, categories, or brands..."
+              className="pl-8"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
           <Button variant="outline" size="icon">
             <Filter className="h-4 w-4" />
@@ -105,11 +143,12 @@ export function ItemsTable({ manifestId }: ItemsTableProps) {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Item</TableHead>
+                <TableHead>AI-Generated Title</TableHead>
                 <TableHead>Category</TableHead>
+                <TableHead>Brand</TableHead>
                 <TableHead>Condition</TableHead>
                 <TableHead className="text-right">Est. Value</TableHead>
-                <TableHead className="text-right">Market Value</TableHead>
+                <TableHead className="text-right">Market High</TableHead>
                 <TableHead>Risk</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
               </TableRow>
@@ -117,8 +156,11 @@ export function ItemsTable({ manifestId }: ItemsTableProps) {
             <TableBody>
               {filteredItems.map((item) => (
                 <TableRow key={item.id}>
-                  <TableCell className="font-medium">{item.title}</TableCell>
+                  <TableCell className="font-medium max-w-[200px] truncate" title={item.title}>
+                    {item.title}
+                  </TableCell>
                   <TableCell>{item.category}</TableCell>
+                  <TableCell>{item.brand || "Unknown"}</TableCell>
                   <TableCell>{item.condition}</TableCell>
                   <TableCell className="text-right">{formatCurrency(item.estimatedValue)}</TableCell>
                   <TableCell className="text-right">{formatCurrency(item.marketValue)}</TableCell>
@@ -132,9 +174,102 @@ export function ItemsTable({ manifestId }: ItemsTableProps) {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem>View Details</DropdownMenuItem>
-                        <DropdownMenuItem>Edit</DropdownMenuItem>
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                              <Eye className="h-4 w-4 mr-2" />
+                              View AI Analysis
+                            </DropdownMenuItem>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-2xl">
+                            <DialogHeader>
+                              <DialogTitle>{item.title}</DialogTitle>
+                              <DialogDescription>Detailed AI analysis for this item</DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                              <div>
+                                <h4 className="font-semibold mb-2">Original Description</h4>
+                                <p className="text-sm text-muted-foreground">{item.originalDescription}</p>
+                              </div>
+
+                              <div className="grid gap-4 md:grid-cols-2">
+                                <div>
+                                  <h4 className="font-semibold mb-2">Product Details</h4>
+                                  <div className="space-y-1 text-sm">
+                                    <div className="flex justify-between">
+                                      <span>Category:</span>
+                                      <Badge variant="outline">{item.category}</Badge>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span>Brand:</span>
+                                      <span>{item.brand || "Unknown"}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span>Model:</span>
+                                      <span>{item.model || "Unknown"}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span>Condition:</span>
+                                      <span>{item.condition}</span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div>
+                                  <h4 className="font-semibold mb-2">Valuation</h4>
+                                  <div className="space-y-1 text-sm">
+                                    <div className="flex justify-between">
+                                      <span>Estimated Value:</span>
+                                      <span className="font-medium">{formatCurrency(item.estimatedValue)}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span>Market High:</span>
+                                      <span>{formatCurrency(item.marketValue)}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span>Risk Score:</span>
+                                      {getRiskBadge(item.riskScore)}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {item.riskFactors.length > 0 && (
+                                <div>
+                                  <h4 className="font-semibold mb-2">Risk Factors</h4>
+                                  <ul className="space-y-1">
+                                    {item.riskFactors.map((factor, index) => (
+                                      <li key={index} className="flex items-center gap-2 text-sm">
+                                        <AlertTriangle className="h-3 w-3 text-yellow-500" />
+                                        {factor}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+
+                              <div>
+                                <h4 className="font-semibold mb-2">AI Reasoning</h4>
+                                <div className="space-y-2 text-sm">
+                                  <div>
+                                    <span className="font-medium">Categorization:</span>
+                                    <p className="text-muted-foreground">{item.aiReasoning.categorization}</p>
+                                  </div>
+                                  <div>
+                                    <span className="font-medium">Valuation:</span>
+                                    <p className="text-muted-foreground">{item.aiReasoning.valuation}</p>
+                                  </div>
+                                  <div>
+                                    <span className="font-medium">Risk Assessment:</span>
+                                    <p className="text-muted-foreground">{item.aiReasoning.risk}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
                         <DropdownMenuItem>Market Research</DropdownMenuItem>
+                        <DropdownMenuItem>Export Item</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -143,6 +278,11 @@ export function ItemsTable({ manifestId }: ItemsTableProps) {
             </TableBody>
           </Table>
         </div>
+        {filteredItems.length === 0 && (
+          <div className="text-center py-8">
+            <p className="text-muted-foreground">No items found matching your search.</p>
+          </div>
+        )}
       </CardContent>
     </Card>
   )
