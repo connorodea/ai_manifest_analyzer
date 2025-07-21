@@ -17,10 +17,14 @@ export function LoginForm() {
   const router = useRouter()
 
   useEffect(() => {
+    console.log("🔄 Login form state changed:", state)
+
     if (state?.success) {
-      router.push("/dashboard")
+      console.log("✅ Login successful, redirecting to dashboard...")
+      // Force a hard redirect to ensure session is properly recognized
+      window.location.href = "/dashboard"
     }
-  }, [state?.success, router])
+  }, [state])
 
   return (
     <Card>
@@ -45,6 +49,8 @@ export function LoginForm() {
               placeholder="Enter your email"
               required
               className={state?.errors?.email ? "border-destructive" : ""}
+              autoComplete="email"
+              defaultValue=""
             />
           </div>
 
@@ -58,6 +64,8 @@ export function LoginForm() {
                 placeholder="Enter your password"
                 required
                 className={state?.errors?.password ? "border-destructive pr-10" : "pr-10"}
+                autoComplete="current-password"
+                defaultValue=""
               />
               <Button
                 type="button"
@@ -93,8 +101,15 @@ export function LoginForm() {
       </form>
 
       <div className="px-6 pb-6">
-        <div className="text-center text-sm text-muted-foreground">
-          Demo credentials: user@example.com / password123
+        <div className="text-center text-sm text-muted-foreground space-y-1">
+          <div>Demo credentials:</div>
+          <div>
+            <strong>user@example.com</strong> / <strong>password123</strong>
+          </div>
+          <div>or</div>
+          <div>
+            <strong>admin@example.com</strong> / <strong>password123</strong>
+          </div>
         </div>
       </div>
     </Card>

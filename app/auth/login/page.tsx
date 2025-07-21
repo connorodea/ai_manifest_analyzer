@@ -14,6 +14,7 @@ export default async function LoginPage() {
   const session = await getSession()
 
   if (session) {
+    console.log("🔄 User already logged in, redirecting to dashboard")
     redirect("/dashboard")
   }
 

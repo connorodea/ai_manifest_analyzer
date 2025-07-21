@@ -16,10 +16,14 @@ export function RegisterForm() {
   const router = useRouter()
 
   useEffect(() => {
+    console.log("🔄 Register form state changed:", state)
+
     if (state?.success) {
-      router.push("/dashboard")
+      console.log("✅ Registration successful, redirecting to dashboard...")
+      // Force a hard redirect to ensure session is properly recognized
+      window.location.href = "/dashboard"
     }
-  }, [state?.success, router])
+  }, [state])
 
   return (
     <Card>
@@ -38,6 +42,7 @@ export function RegisterForm() {
                 placeholder="John"
                 required
                 className={state?.errors?.firstName ? "border-destructive" : ""}
+                autoComplete="given-name"
               />
               {state?.errors?.firstName && <p className="text-sm text-destructive">{state.errors.firstName[0]}</p>}
             </div>
@@ -49,6 +54,7 @@ export function RegisterForm() {
                 placeholder="Doe"
                 required
                 className={state?.errors?.lastName ? "border-destructive" : ""}
+                autoComplete="family-name"
               />
               {state?.errors?.lastName && <p className="text-sm text-destructive">{state.errors.lastName[0]}</p>}
             </div>
@@ -63,6 +69,7 @@ export function RegisterForm() {
               placeholder="john@example.com"
               required
               className={state?.errors?.email ? "border-destructive" : ""}
+              autoComplete="email"
             />
             {state?.errors?.email && <p className="text-sm text-destructive">{state.errors.email[0]}</p>}
           </div>
@@ -74,6 +81,7 @@ export function RegisterForm() {
               name="company"
               placeholder="Your Company"
               className={state?.errors?.company ? "border-destructive" : ""}
+              autoComplete="organization"
             />
             {state?.errors?.company && <p className="text-sm text-destructive">{state.errors.company[0]}</p>}
           </div>
@@ -88,6 +96,7 @@ export function RegisterForm() {
                 placeholder="Create a strong password"
                 required
                 className={state?.errors?.password ? "border-destructive pr-10" : "pr-10"}
+                autoComplete="new-password"
               />
               <Button
                 type="button"

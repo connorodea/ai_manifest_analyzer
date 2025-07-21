@@ -1,49 +1,13 @@
 "use server"
 
 import { z } from "zod"
-import bcrypt from "bcryptjs"
 import { createSession, deleteSession, getSession } from "@/lib/auth/session"
 import { redirect } from "next/navigation"
-
-// Mock user database - in production, this would be a real database
-const users = new Map([
-  [
-    "user@example.com",
-    {
-      id: "user-1",
-      email: "user@example.com",
-      passwordHash: "$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj6uk6L7Q1NO", // "password123"
-      firstName: "Demo",
-      lastName: "User",
-      company: "Demo Company",
-      role: "user",
-      subscriptionTier: "professional",
-      subscriptionStatus: "active",
-      createdAt: new Date("2023-01-01"),
-      emailVerified: true,
-    },
-  ],
-  [
-    "admin@example.com",
-    {
-      id: "admin-1",
-      email: "admin@example.com",
-      passwordHash: "$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj6uk6L7Q1NO", // "password123"
-      firstName: "Admin",
-      lastName: "User",
-      company: "AI Manifest Analyzer Pro",
-      role: "admin",
-      subscriptionTier: "enterprise",
-      subscriptionStatus: "active",
-      createdAt: new Date("2023-01-01"),
-      emailVerified: true,
-    },
-  ],
-])
+import { getUserByEmail, createUser, getUserById, verifyPassword, hashPassword } from "@/lib/data/users"
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  password: z.string().min(1, "Password is required"),
 })
 
 const registerSchema = z.object({
@@ -61,22 +25,35 @@ const registerSchema = z.object({
 })
 
 export async function login(prevState: any, formData: FormData) {
+  console.log("🚀 Login attempt started")
+
   try {
+    const email = formData.get("email") as string
+    const password = formData.get("password") as string
+
+    console.log("📧 Login attempt for email:", email)
+    console.log("🔑 Password provided:", password ? "Yes" : "No")
+
     const validatedFields = loginSchema.safeParse({
-      email: formData.get("email"),
-      password: formData.get("password"),
+      email,
+      password,
     })
 
     if (!validatedFields.success) {
+      console.log("❌ Validation failed:", validatedFields.error.flatten().fieldErrors)
       return {
         errors: validatedFields.error.flatten().fieldErrors,
       }
     }
 
-    const { email, password } = validatedFields.data
-    const user = users.get(email.toLowerCase())
+    const { email: validEmail, password: validPassword } = validatedFields.data
+    const emailLower = validEmail.toLowerCase()
+
+    console.log("🔍 Looking for user with email:", emailLower)
+    const user = await getUserByEmail(emailLower)
 
     if (!user) {
+      console.log("❌ User not found for email:", emailLower)
       return {
         errors: {
           email: ["Invalid email or password"],
@@ -84,9 +61,13 @@ export async function login(prevState: any, formData: FormData) {
       }
     }
 
-    const isValidPassword = await bcrypt.compare(password, user.passwordHash)
+    console.log("✅ User found:", { id: user.id, email: user.email })
+    console.log("🔐 Checking password...")
+
+    const isValidPassword = await verifyPassword(validPassword, user.passwordHash)
 
     if (!isValidPassword) {
+      console.log("❌ Invalid password")
       return {
         errors: {
           email: ["Invalid email or password"],
@@ -95,12 +76,15 @@ export async function login(prevState: any, formData: FormData) {
     }
 
     if (!user.emailVerified) {
+      console.log("❌ Email not verified")
       return {
         errors: {
           email: ["Please verify your email address before logging in"],
         },
       }
     }
+
+    console.log("🎯 Creating session for user:", user.id)
 
     // Create session
     await createSession({
@@ -111,9 +95,10 @@ export async function login(prevState: any, formData: FormData) {
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
     })
 
+    console.log("✅ Login successful!")
     return { success: true }
   } catch (error) {
-    console.error("Login error:", error)
+    console.error("❌ Login error:", error)
     return {
       errors: {
         email: ["An error occurred during login. Please try again."],
@@ -123,6 +108,8 @@ export async function login(prevState: any, formData: FormData) {
 }
 
 export async function register(prevState: any, formData: FormData) {
+  console.log("🚀 Registration attempt started")
+
   try {
     const validatedFields = registerSchema.safeParse({
       email: formData.get("email"),
@@ -133,15 +120,21 @@ export async function register(prevState: any, formData: FormData) {
     })
 
     if (!validatedFields.success) {
+      console.log("❌ Registration validation failed:", validatedFields.error.flatten().fieldErrors)
       return {
         errors: validatedFields.error.flatten().fieldErrors,
       }
     }
 
     const { email, password, firstName, lastName, company } = validatedFields.data
+    const emailLower = email.toLowerCase()
+
+    console.log("📧 Registration attempt for email:", emailLower)
 
     // Check if user already exists
-    if (users.has(email.toLowerCase())) {
+    const existingUser = await getUserByEmail(emailLower)
+    if (existingUser) {
+      console.log("❌ User already exists:", emailLower)
       return {
         errors: {
           email: ["An account with this email already exists"],
@@ -149,14 +142,12 @@ export async function register(prevState: any, formData: FormData) {
       }
     }
 
-    // Hash password
-    const passwordHash = await bcrypt.hash(password, 12)
+    console.log("🔐 Hashing password...")
+    const passwordHash = await hashPassword(password)
 
     // Create user
-    const userId = `user-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`
-    const newUser = {
-      id: userId,
-      email: email.toLowerCase(),
+    const newUser = await createUser({
+      email: emailLower,
       passwordHash,
       firstName,
       lastName,
@@ -164,11 +155,10 @@ export async function register(prevState: any, formData: FormData) {
       role: "user",
       subscriptionTier: "starter",
       subscriptionStatus: "active",
-      createdAt: new Date(),
       emailVerified: true, // In production, this would be false until email is verified
-    }
+    })
 
-    users.set(email.toLowerCase(), newUser)
+    console.log("👤 User created successfully:", { id: newUser.id, email: newUser.email })
 
     // Create session
     await createSession({
@@ -179,9 +169,10 @@ export async function register(prevState: any, formData: FormData) {
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
     })
 
+    console.log("✅ Registration successful for:", emailLower)
     return { success: true }
   } catch (error) {
-    console.error("Registration error:", error)
+    console.error("❌ Registration error:", error)
     return {
       errors: {
         email: ["An error occurred during registration. Please try again."],
@@ -191,18 +182,33 @@ export async function register(prevState: any, formData: FormData) {
 }
 
 export async function logout() {
+  console.log("🚪 Logging out user")
   await deleteSession()
   redirect("/auth/login")
 }
 
 export async function getCurrentUser() {
-  const session = await getSession()
-  if (!session) return null
+  try {
+    const session = await getSession()
+    if (!session) {
+      console.log("👤 No session found for getCurrentUser")
+      return null
+    }
 
-  const user = Array.from(users.values()).find((u) => u.id === session.userId)
-  if (!user) return null
+    console.log("👤 Getting current user for session:", session.userId)
+    const user = await getUserById(session.userId)
 
-  // Remove sensitive data
-  const { passwordHash, ...safeUser } = user
-  return safeUser
+    if (!user) {
+      console.log("❌ User not found for session:", session.userId)
+      return null
+    }
+
+    console.log("✅ Current user found:", { id: user.id, email: user.email })
+    // Remove sensitive data
+    const { passwordHash, ...safeUser } = user
+    return safeUser
+  } catch (error) {
+    console.error("❌ Error getting current user:", error)
+    return null
+  }
 }

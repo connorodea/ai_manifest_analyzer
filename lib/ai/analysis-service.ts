@@ -101,7 +101,8 @@ export async function analyzeManifestWithAI(
   manifestName: string,
 ): Promise<ManifestAnalysisResult> {
   const startTime = Date.now()
-  console.log(`Starting AI analysis for manifest: ${manifestName}`)
+  console.log(`🤖 Starting REAL AI analysis for manifest: ${manifestName}`)
+  console.log(`📊 Using OpenAI GPT-4o for analysis`)
 
   try {
     // Parse the file content
@@ -116,7 +117,7 @@ export async function analyzeManifestWithAI(
       throw new Error("No items found in the manifest file")
     }
 
-    console.log(`Found ${rawItems.length} items to analyze`)
+    console.log(`📋 Found ${rawItems.length} items to analyze with AI`)
 
     // Process items in batches to avoid rate limits
     const batchSize = 5
@@ -129,7 +130,7 @@ export async function analyzeManifestWithAI(
 
     for (let i = 0; i < rawItems.length; i += batchSize) {
       const batch = rawItems.slice(i, i + batchSize)
-      console.log(`Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(rawItems.length / batchSize)}`)
+      console.log(`🔄 Processing AI batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(rawItems.length / batchSize)}`)
 
       const batchPromises = batch.map((rawItem, batchIndex) => processItemWithAI(rawItem, i + batchIndex + 1))
 
@@ -155,11 +156,12 @@ export async function analyzeManifestWithAI(
 
       // Add delay between batches to respect rate limits
       if (i + batchSize < rawItems.length) {
+        console.log(`⏳ Waiting 1 second before next AI batch...`)
         await new Promise((resolve) => setTimeout(resolve, 1000))
       }
     }
 
-    console.log("Generating manifest insights...")
+    console.log(`🧠 Generating comprehensive AI insights...`)
 
     // Generate comprehensive insights
     const insights = await generateManifestInsights(processedItems, categoryBreakdown, totalValue)
@@ -171,7 +173,9 @@ export async function analyzeManifestWithAI(
     const processingTime = Date.now() - startTime
     const manifestId = `manifest-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`
 
-    console.log(`Analysis completed in ${processingTime}ms`)
+    console.log(`✅ AI Analysis completed in ${processingTime}ms`)
+    console.log(`📈 Total estimated value: $${totalValue.toFixed(2)}`)
+    console.log(`🎯 AI confidence score: ${Math.round(avgConfidence * 100)}%`)
 
     return {
       manifestId,
@@ -189,7 +193,7 @@ export async function analyzeManifestWithAI(
       items: processedItems,
     }
   } catch (error) {
-    console.error("Error in AI analysis:", error)
+    console.error("❌ Error in AI analysis:", error)
     throw new Error(`AI analysis failed: ${error instanceof Error ? error.message : "Unknown error"}`)
   }
 }
@@ -202,11 +206,14 @@ async function processItemWithAI(rawItem: any, rowNumber: number): Promise<Proce
     throw new Error(`Item ${rowNumber} has no description`)
   }
 
+  console.log(`🔍 AI analyzing item ${rowNumber}: "${originalDescription.substring(0, 50)}..."`)
+
   try {
     // Clean the description
     const cleanedDescription = await cleanDescription(originalDescription)
 
-    // Step 1: Categorize the item
+    // Step 1: AI Categorization
+    console.log(`  🏷️  AI categorizing item ${rowNumber}...`)
     const categoryResult = await generateObject({
       model: openai("gpt-4o"),
       schema: ItemCategorySchema,
@@ -230,7 +237,8 @@ Provide a specific subcategory and confidence score.`,
       system: "You are an expert product categorization system with deep knowledge of retail categories.",
     })
 
-    // Step 2: Extract brand and model
+    // Step 2: AI Brand/Model Extraction
+    console.log(`  🏢 AI extracting brand/model for item ${rowNumber}...`)
     const brandModelResult = await generateObject({
       model: openai("gpt-4o"),
       schema: BrandModelSchema,
@@ -243,7 +251,8 @@ If no clear brand or model is found, return empty strings.`,
       system: "You are an expert at identifying product brands and models from descriptions.",
     })
 
-    // Step 3: Generate AI title
+    // Step 3: AI Title Generation
+    console.log(`  📝 AI generating title for item ${rowNumber}...`)
     const { text: aiTitle } = await generateText({
       model: openai("gpt-4o"),
       prompt: `Create a clear, concise product title (max 60 characters) for:
@@ -257,7 +266,8 @@ Make it suitable for e-commerce listing.`,
       system: "You are an expert at creating compelling product titles for online marketplaces.",
     })
 
-    // Step 4: Estimate value
+    // Step 4: AI Market Valuation
+    console.log(`  💰 AI estimating value for item ${rowNumber}...`)
     const valueResult = await generateObject({
       model: openai("gpt-4o"),
       schema: ValueEstimationSchema,
@@ -282,7 +292,8 @@ Provide realistic price estimates in USD.`,
         "You are a market valuation expert with access to current pricing data across multiple platforms. Provide realistic, data-driven estimates.",
     })
 
-    // Step 5: Assess risk
+    // Step 5: AI Risk Assessment
+    console.log(`  ⚠️  AI assessing risks for item ${rowNumber}...`)
     const riskResult = await generateObject({
       model: openai("gpt-4o"),
       schema: RiskAssessmentSchema,
@@ -307,6 +318,8 @@ Authenticity score: 1-100 (higher = more likely authentic)`,
       system: "You are a risk assessment expert specializing in liquidation and resale markets.",
     })
 
+    console.log(`  ✅ AI analysis complete for item ${rowNumber}`)
+
     return {
       id: `item-${rowNumber}`,
       rowNumber,
@@ -320,8 +333,7 @@ Authenticity score: 1-100 (higher = more likely authentic)`,
       condition,
       estimatedValue: valueResult.object.estimatedValue,
       marketValueLow: valueResult.object.marketValueLow,
-      marketValueHigh: valueResult.object.marketValueHigh,
-      marketScore: valueResult.object.marketScore,
+      marketValueHigh: valueResult.object.marketScore,
       demandScore: valueResult.object.demandScore,
       riskScore: riskResult.object.riskScore,
       authenticityScore: riskResult.object.authenticityScore,
@@ -334,7 +346,7 @@ Authenticity score: 1-100 (higher = more likely authentic)`,
       },
     }
   } catch (error) {
-    console.error(`Error processing item ${rowNumber}:`, error)
+    console.error(`❌ Error processing item ${rowNumber}:`, error)
     throw new Error(`Failed to process item ${rowNumber}: ${error instanceof Error ? error.message : "Unknown error"}`)
   }
 }
