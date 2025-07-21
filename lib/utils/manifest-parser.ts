@@ -1,5 +1,13 @@
 "use server"
 
+// Re-export from enhanced parser for backward compatibility
+export {
+  parseEnhancedManifestCSV,
+  validateManifestStructure,
+  type EnhancedManifestItem,
+  type ManifestValidation,
+} from "./enhanced-manifest-parser"
+
 export interface ParsedManifestItem {
   price: number
   description: string

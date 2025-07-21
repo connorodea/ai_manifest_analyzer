@@ -1,12 +1,24 @@
 "use server"
 
 export interface EnhancedManifestItem {
+  id: string
   product: string
   quantity: number
   retailPrice: number
-  totalRetailPrice: number
   condition: string
+  category?: string
+  brand?: string
+  model?: string
+  totalRetailPrice: number
   rawData: Record<string, string>
+}
+
+export interface ManifestValidation {
+  isValid: boolean
+  errors: string[]
+  warnings: string[]
+  totalItems: number
+  validItems: number
 }
 
 export async function parseEnhancedManifestCSV(content: string): Promise<EnhancedManifestItem[]> {
@@ -36,7 +48,7 @@ export async function parseEnhancedManifestCSV(content: string): Promise<Enhance
     // Process each data row
     for (let i = 1; i < lines.length; i++) {
       try {
-        const values = parseCSVLine(lines[i])
+        const values = await parseCSVLine(lines[i])
 
         if (values.length < 3) {
           console.log(`⚠️ Skipping incomplete row ${i}: only ${values.length} columns`)
@@ -64,15 +76,21 @@ export async function parseEnhancedManifestCSV(content: string): Promise<Enhance
 
         // Parse numeric values
         const quantity = Number.parseInt(quantityStr) || 1
-        const retailPrice = parsePrice(retailPriceStr)
-        const totalRetailPrice = parsePrice(totalRetailPriceStr)
+        const retailPrice = await parsePrice(retailPriceStr)
+        const totalRetailPrice = await parsePrice(totalRetailPriceStr)
+
+        const category = await extractCategory(product)
+        const brand = await extractBrand(product)
 
         const item: EnhancedManifestItem = {
+          id: `item-${i}-${Date.now()}`,
           product: product.trim(),
           quantity,
           retailPrice,
-          totalRetailPrice,
           condition: condition || "Unknown",
+          category,
+          brand,
+          totalRetailPrice: totalRetailPrice || retailPrice * quantity,
           rawData,
         }
 
@@ -86,6 +104,8 @@ export async function parseEnhancedManifestCSV(content: string): Promise<Enhance
             retailPrice: item.retailPrice,
             totalRetailPrice: item.totalRetailPrice,
             condition: item.condition,
+            category: item.category,
+            brand: item.brand,
           })
         }
       } catch (rowError) {
@@ -107,7 +127,7 @@ export async function parseEnhancedManifestCSV(content: string): Promise<Enhance
   }
 }
 
-function parseCSVLine(line: string): string[] {
+async function parseCSVLine(line: string): Promise<string[]> {
   const result = []
   let current = ""
   let inQuotes = false
@@ -131,7 +151,7 @@ function parseCSVLine(line: string): string[] {
   return result.map((v) => v.replace(/^"|"$/g, ""))
 }
 
-function parsePrice(priceStr: string): number {
+async function parsePrice(priceStr: string): Promise<number> {
   if (!priceStr) return 0
 
   // Remove currency symbols, commas, spaces, and extract numeric value
@@ -141,59 +161,139 @@ function parsePrice(priceStr: string): number {
   return Math.max(0, price) // Ensure non-negative
 }
 
-export function validateManifestStructure(items: EnhancedManifestItem[]): {
-  isValid: boolean
-  issues: string[]
-  stats: {
-    totalItems: number
-    itemsWithPrices: number
-    itemsWithCondition: number
-    averageRetailPrice: number
-    totalRetailValue: number
+async function extractCategory(description: string): Promise<string | undefined> {
+  const categories = {
+    electronics: ["phone", "laptop", "tablet", "tv", "computer", "headphones", "speaker", "camera"],
+    clothing: ["shirt", "pants", "dress", "shoes", "jacket", "coat", "hat", "jeans"],
+    home: ["furniture", "chair", "table", "lamp", "bed", "sofa", "kitchen", "bathroom"],
+    toys: ["toy", "game", "puzzle", "doll", "action figure", "lego", "board game"],
+    sports: ["fitness", "exercise", "sports", "gym", "outdoor", "bike", "ball"],
+    beauty: ["makeup", "skincare", "perfume", "cosmetics", "beauty", "hair"],
+    auto: ["car", "automotive", "tire", "engine", "vehicle", "motorcycle"],
+    books: ["book", "novel", "textbook", "magazine", "journal", "manual"],
   }
-} {
-  const issues: string[] = []
 
-  if (items.length === 0) {
-    issues.push("No valid items found in manifest")
-    return {
-      isValid: false,
-      issues,
-      stats: {
-        totalItems: 0,
-        itemsWithPrices: 0,
-        itemsWithCondition: 0,
-        averageRetailPrice: 0,
-        totalRetailValue: 0,
-      },
+  const lowerDesc = description.toLowerCase()
+
+  for (const [category, keywords] of Object.entries(categories)) {
+    if (keywords.some((keyword) => lowerDesc.includes(keyword))) {
+      return category.charAt(0).toUpperCase() + category.slice(1)
     }
   }
 
-  const itemsWithPrices = items.filter((item) => item.retailPrice > 0).length
-  const itemsWithCondition = items.filter((item) => item.condition && item.condition !== "Unknown").length
-  const totalRetailValue = items.reduce(
-    (sum, item) => sum + (item.totalRetailPrice || item.retailPrice * item.quantity),
-    0,
-  )
-  const averageRetailPrice = items.reduce((sum, item) => sum + item.retailPrice, 0) / items.length
+  return "Other"
+}
 
-  if (itemsWithPrices < items.length * 0.5) {
-    issues.push("More than 50% of items are missing retail prices")
+async function extractBrand(description: string): Promise<string | undefined> {
+  const brands = [
+    "apple",
+    "samsung",
+    "sony",
+    "lg",
+    "nike",
+    "adidas",
+    "microsoft",
+    "google",
+    "amazon",
+    "dell",
+    "hp",
+    "lenovo",
+    "canon",
+    "nikon",
+    "bose",
+    "beats",
+  ]
+
+  const lowerDesc = description.toLowerCase()
+
+  for (const brand of brands) {
+    if (lowerDesc.includes(brand)) {
+      return brand.charAt(0).toUpperCase() + brand.slice(1)
+    }
   }
 
-  if (itemsWithCondition < items.length * 0.3) {
-    issues.push("More than 70% of items are missing condition information")
+  return undefined
+}
+
+async function extractCondition(description: string): Promise<string | undefined> {
+  const conditions = ["new", "used", "refurbished", "open box", "damaged", "excellent", "good", "fair", "poor"]
+  const lowerDesc = description.toLowerCase()
+
+  for (const condition of conditions) {
+    if (lowerDesc.includes(condition)) {
+      return condition.charAt(0).toUpperCase() + condition.slice(1)
+    }
+  }
+
+  return undefined
+}
+
+export async function validateManifestStructure(items: EnhancedManifestItem[]): Promise<ManifestValidation> {
+  const errors: string[] = []
+  const warnings: string[] = []
+  let validItems = 0
+
+  if (items.length === 0) {
+    errors.push("No valid items found in manifest")
+    return {
+      isValid: false,
+      errors,
+      warnings,
+      totalItems: 0,
+      validItems: 0,
+    }
+  }
+
+  for (const item of items) {
+    let itemValid = true
+
+    // Check required fields
+    if (!item.product || item.product.trim().length < 3) {
+      errors.push(`Item ${item.id}: Product description too short or missing`)
+      itemValid = false
+    }
+
+    if (item.retailPrice <= 0) {
+      errors.push(`Item ${item.id}: Invalid retail price`)
+      itemValid = false
+    }
+
+    if (item.quantity <= 0) {
+      warnings.push(`Item ${item.id}: Invalid quantity, defaulting to 1`)
+    }
+
+    // Check for suspicious data
+    if (item.retailPrice > 10000) {
+      warnings.push(`Item ${item.id}: Very high retail price ($${item.retailPrice})`)
+    }
+
+    if (itemValid) {
+      validItems++
+    }
+  }
+
+  // Overall validation
+  const validationRate = validItems / items.length
+  if (validationRate < 0.8) {
+    warnings.push(`Low validation rate: ${(validationRate * 100).toFixed(1)}% of items are valid`)
   }
 
   return {
-    isValid: issues.length === 0,
-    issues,
-    stats: {
-      totalItems: items.length,
-      itemsWithPrices,
-      itemsWithCondition,
-      averageRetailPrice,
-      totalRetailValue,
-    },
+    isValid: errors.length === 0,
+    errors,
+    warnings,
+    totalItems: items.length,
+    validItems,
   }
+}
+
+export async function enhanceManifestItems(items: EnhancedManifestItem[]): Promise<EnhancedManifestItem[]> {
+  console.log(`🔧 Enhancing ${items.length} manifest items...`)
+
+  return items.map((item) => ({
+    ...item,
+    // Add any additional enhancements here
+    category: item.category || "Other",
+    condition: item.condition || "Unknown",
+  }))
 }
