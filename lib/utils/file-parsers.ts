@@ -8,7 +8,7 @@ export interface ParsedFileData {
   encoding?: string
 }
 
-export async function parseCSVFile(content: string): Promise<ParsedFileData> {
+export async function parseCSV(content: string): Promise<ParsedFileData> {
   try {
     console.log(`📄 Parsing CSV content (${content.length} characters)...`)
 
@@ -48,6 +48,10 @@ export async function parseCSVFile(content: string): Promise<ParsedFileData> {
     console.error("❌ CSV parsing failed:", error)
     throw new Error(`Failed to parse CSV: ${error instanceof Error ? error.message : "Unknown error"}`)
   }
+}
+
+export async function parseCSVFile(content: string): Promise<ParsedFileData> {
+  return parseCSV(content)
 }
 
 function parseCSVLine(line: string): string[] {

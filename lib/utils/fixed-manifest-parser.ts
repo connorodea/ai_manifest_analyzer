@@ -16,7 +16,7 @@ export interface ManifestValidation {
   totalValue: number
 }
 
-export async function parseManifestCSVFixed(content: string): Promise<FixedManifestItem[]> {
+export async function parseFixedManifestCSV(content: string): Promise<FixedManifestItem[]> {
   console.log("🔧 FIXED CSV PARSER - Starting parse...")
   console.log(`📄 Content length: ${content.length} characters`)
 
@@ -192,7 +192,7 @@ function parsePrice(priceStr: string): number {
   return isNaN(price) ? 0 : price
 }
 
-export function validateFixedManifestStructure(items: FixedManifestItem[]): ManifestValidation {
+export function validateManifestStructure(items: FixedManifestItem[]): ManifestValidation {
   const issues: string[] = []
   let totalValue = 0
 

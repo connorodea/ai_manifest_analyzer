@@ -1,6 +1,6 @@
 "use server"
 
-export async function cleanProductDescription(description: string): Promise<string> {
+export async function cleanDescription(description: string): Promise<string> {
   if (!description) return ""
 
   // Remove extra whitespace and normalize
@@ -30,6 +30,10 @@ export async function cleanProductDescription(description: string): Promise<stri
   cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1)
 
   return cleaned.trim()
+}
+
+export async function cleanProductDescription(description: string): Promise<string> {
+  return cleanDescription(description)
 }
 
 export async function extractKeywords(text: string): Promise<string[]> {

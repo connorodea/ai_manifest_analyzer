@@ -6,7 +6,7 @@ import { analyzeSimpleManifest, type SimpleManifestAnalysisResult } from "../ai/
 // In-memory storage for demo - in production, use a database
 const fixedManifestStorage = new Map<string, SimpleManifestAnalysisResult>()
 
-export async function uploadFixedManifest(formData: FormData) {
+export async function uploadManifestFixed(formData: FormData) {
   console.log("🚀 Starting fixed manifest upload...")
 
   try {
@@ -28,13 +28,13 @@ export async function uploadFixedManifest(formData: FormData) {
 
     // Validate structure
     console.log("✅ Validating manifest structure...")
-    const validation = await validateManifestStructure(items)
+    const validation = validateManifestStructure(items)
 
     if (!validation.isValid) {
-      throw new Error(`Manifest validation failed: ${validation.errors.join(", ")}`)
+      throw new Error(`Manifest validation failed: ${validation.issues.join(", ")}`)
     }
 
-    console.log(`✅ Validation passed: ${validation.validItems}/${validation.totalItems} items valid`)
+    console.log(`✅ Validation passed: ${validation.itemCount} items valid`)
 
     // Perform AI analysis
     console.log("🤖 Starting AI analysis...")
@@ -56,6 +56,36 @@ export async function uploadFixedManifest(formData: FormData) {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error occurred",
     }
+  }
+}
+
+export async function uploadFixedManifest(formData: FormData) {
+  return uploadManifestFixed(formData)
+}
+
+export async function getFixedManifestItems(id: string) {
+  try {
+    const manifest = fixedManifestStorage.get(id)
+    if (!manifest) {
+      throw new Error(`Fixed manifest not found: ${id}`)
+    }
+    return manifest.items || []
+  } catch (error) {
+    console.error("❌ Error getting fixed manifest items:", error)
+    return []
+  }
+}
+
+export async function getFixedManifestAnalysis(id: string) {
+  try {
+    const manifest = fixedManifestStorage.get(id)
+    if (!manifest) {
+      throw new Error(`Fixed manifest not found: ${id}`)
+    }
+    return manifest
+  } catch (error) {
+    console.error("❌ Error getting fixed manifest analysis:", error)
+    throw error
   }
 }
 

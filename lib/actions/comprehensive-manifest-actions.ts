@@ -1,14 +1,13 @@
 "use server"
 
-import { parseEnhancedManifestCSV, validateManifestStructure } from "@/lib/utils/enhanced-manifest-parser"
-import { parseFixedManifestCSV } from "@/lib/utils/fixed-manifest-parser"
-import { analyzeManifestComprehensively, type ComprehensiveManifestAnalysis } from "@/lib/ai/deep-research-analysis"
+import { parseFixedManifestCSV, validateManifestStructure } from "../utils/fixed-manifest-parser"
+import { performDeepResearchAnalysis, type ComprehensiveAnalysisResult } from "../ai/deep-research-analysis"
 
 // In-memory storage for demo - in production, use a database
-const comprehensiveManifestStorage = new Map<string, ComprehensiveManifestAnalysis>()
+const comprehensiveManifestStorage = new Map<string, ComprehensiveAnalysisResult>()
 
 export async function uploadComprehensiveManifest(formData: FormData) {
-  console.log("🚀 Starting comprehensive manifest upload with deep AI research...")
+  console.log("🚀 Starting comprehensive manifest upload...")
 
   try {
     const file = formData.get("file") as File
@@ -22,37 +21,24 @@ export async function uploadComprehensiveManifest(formData: FormData) {
     const content = await file.text()
     console.log(`📄 File content length: ${content.length} characters`)
 
-    // Try to parse as enhanced manifest first, then fall back to fixed manifest
-    let items
-    try {
-      console.log("🔍 Attempting to parse as enhanced manifest...")
-      items = await parseEnhancedManifestCSV(content)
-      console.log(`✅ Parsed as enhanced manifest: ${items.length} items`)
-    } catch (enhancedError) {
-      console.log("⚠️ Enhanced parsing failed, trying fixed manifest format...")
-      try {
-        items = await parseFixedManifestCSV(content)
-        console.log(`✅ Parsed as fixed manifest: ${items.length} items`)
-      } catch (fixedError) {
-        throw new Error(
-          `Failed to parse manifest in any supported format. Enhanced error: ${enhancedError}. Fixed error: ${fixedError}`,
-        )
-      }
+    // Parse manifest
+    console.log("🔍 Parsing comprehensive manifest...")
+    const items = await parseFixedManifestCSV(content)
+    console.log(`✅ Parsed ${items.length} items`)
+
+    // Validate structure
+    console.log("✅ Validating manifest structure...")
+    const validation = validateManifestStructure(items)
+
+    if (!validation.isValid) {
+      throw new Error(`Manifest validation failed: ${validation.issues.join(", ")}`)
     }
 
-    // Validate structure if using enhanced format
-    if (items.length > 0 && "description" in items[0]) {
-      console.log("✅ Validating enhanced manifest structure...")
-      const validation = await validateManifestStructure(items as any)
-      if (!validation.isValid) {
-        console.warn(`⚠️ Validation warnings: ${validation.errors.join(", ")}`)
-      }
-      console.log(`✅ Validation completed: ${validation.validItems}/${validation.totalItems} items valid`)
-    }
+    console.log(`✅ Validation passed: ${validation.itemCount} items valid`)
 
     // Perform comprehensive AI analysis with deep research
     console.log("🤖 Starting comprehensive AI analysis with deep research...")
-    const analysisResult = await analyzeManifestComprehensively(items, file.name)
+    const analysisResult = await performDeepResearchAnalysis(items, file.name)
     console.log("✅ Comprehensive AI analysis completed")
 
     // Store result
@@ -73,7 +59,7 @@ export async function uploadComprehensiveManifest(formData: FormData) {
   }
 }
 
-export async function getComprehensiveManifestById(id: string): Promise<ComprehensiveManifestAnalysis> {
+export async function getComprehensiveManifestById(id: string): Promise<ComprehensiveAnalysisResult> {
   try {
     const manifest = comprehensiveManifestStorage.get(id)
     if (!manifest) {
@@ -86,12 +72,12 @@ export async function getComprehensiveManifestById(id: string): Promise<Comprehe
   }
 }
 
-export async function getAllComprehensiveManifests(userId: string): Promise<ComprehensiveManifestAnalysis[]> {
+export async function getAllComprehensiveManifests(userId: string): Promise<ComprehensiveAnalysisResult[]> {
   try {
     // In production, filter by userId
     const manifests = Array.from(comprehensiveManifestStorage.values())
     console.log(`📋 Retrieved ${manifests.length} comprehensive manifests for user ${userId}`)
-    return manifests.sort((a, b) => new Date(b.analysisTimestamp).getTime() - new Date(a.analysisTimestamp).getTime())
+    return manifests
   } catch (error) {
     console.error("❌ Error getting comprehensive manifests:", error)
     return []
@@ -120,24 +106,19 @@ export async function getComprehensiveManifestSummary(userId: string) {
     const summary = {
       totalManifests: manifests.length,
       totalItems: manifests.reduce((sum, m) => sum + m.totalItems, 0),
-      totalInvestment: manifests.reduce((sum, m) => sum + m.manifestInsights.executiveSummary.totalInvestment, 0),
-      totalProjectedRevenue: manifests.reduce(
-        (sum, m) => sum + m.manifestInsights.executiveSummary.projectedRevenue,
-        0,
-      ),
-      totalExpectedProfit: manifests.reduce((sum, m) => sum + m.manifestInsights.executiveSummary.expectedProfit, 0),
+      totalValue: manifests.reduce((sum, m) => sum + m.executiveSummary.totalRetailValue, 0),
+      totalProfit: manifests.reduce((sum, m) => sum + m.executiveSummary.totalPotentialProfit, 0),
       averageROI: 0,
       averageConfidence: 0,
-      totalProcessingTime: manifests.reduce((sum, m) => sum + m.processingTime, 0),
     }
 
-    if (summary.totalInvestment > 0) {
-      summary.averageROI = (summary.totalExpectedProfit / summary.totalInvestment) * 100
+    if (summary.totalValue > 0) {
+      summary.averageROI = (summary.totalProfit / summary.totalValue) * 100
     }
 
     if (manifests.length > 0) {
       summary.averageConfidence =
-        manifests.reduce((sum, m) => sum + m.manifestInsights.executiveSummary.confidenceScore, 0) / manifests.length
+        manifests.reduce((sum, m) => sum + m.executiveSummary.aiConfidence, 0) / manifests.length
     }
 
     return summary
@@ -146,49 +127,10 @@ export async function getComprehensiveManifestSummary(userId: string) {
     return {
       totalManifests: 0,
       totalItems: 0,
-      totalInvestment: 0,
-      totalProjectedRevenue: 0,
-      totalExpectedProfit: 0,
+      totalValue: 0,
+      totalProfit: 0,
       averageROI: 0,
       averageConfidence: 0,
-      totalProcessingTime: 0,
-    }
-  }
-}
-
-export async function reanalyzeComprehensiveManifest(manifestId: string) {
-  try {
-    console.log(`🔄 Re-analyzing comprehensive manifest: ${manifestId}`)
-
-    const existingManifest = comprehensiveManifestStorage.get(manifestId)
-    if (!existingManifest) {
-      throw new Error(`Manifest not found: ${manifestId}`)
-    }
-
-    // Extract original items from the research results
-    const originalItems = existingManifest.researchResults.map((result) => result.originalItem)
-
-    // Perform new comprehensive analysis
-    const newAnalysis = await analyzeManifestComprehensively(originalItems, existingManifest.manifestName)
-
-    // Update storage with new analysis but keep original ID
-    const updatedAnalysis = {
-      ...newAnalysis,
-      manifestId: existingManifest.manifestId, // Keep original ID
-    }
-
-    comprehensiveManifestStorage.set(manifestId, updatedAnalysis)
-
-    console.log(`✅ Re-analysis completed for comprehensive manifest: ${manifestId}`)
-    return {
-      success: true,
-      result: updatedAnalysis,
-    }
-  } catch (error) {
-    console.error("❌ Comprehensive re-analysis failed:", error)
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error occurred",
     }
   }
 }

@@ -3,338 +3,253 @@
 import type React from "react"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import {
+  Upload,
   FileText,
-  Brain,
-  Zap,
   CheckCircle,
   AlertTriangle,
-  Loader2,
-  Search,
-  BarChart3,
-  Target,
+  Brain,
   TrendingUp,
-  Award,
+  DollarSign,
+  BarChart3,
   Clock,
-  Eye,
 } from "lucide-react"
 import { uploadComprehensiveManifest } from "@/lib/actions/comprehensive-manifest-actions"
-import type { ComprehensiveManifestAnalysis } from "@/lib/ai/deep-research-analysis"
 
 export function ComprehensiveManifestUploader() {
-  const [file, setFile] = useState<File | null>(null)
-  const [uploading, setUploading] = useState(false)
-  const [progress, setProgress] = useState(0)
-  const [result, setResult] = useState<ComprehensiveManifestAnalysis | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [currentStep, setCurrentStep] = useState("")
+  const [result, setResult] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
-  const [currentStep, setCurrentStep] = useState<string>("")
+  const router = useRouter()
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = event.target.files?.[0]
-    if (selectedFile) {
-      setFile(selectedFile)
-      setResult(null)
-      setError(null)
-    }
-  }
-
-  const simulateProgress = () => {
-    const steps = [
-      { step: "Parsing CSV file...", progress: 10 },
-      { step: "Validating data structure...", progress: 20 },
-      { step: "Generating market context...", progress: 30 },
-      { step: "Performing deep product research...", progress: 50 },
-      { step: "Analyzing market trends...", progress: 70 },
-      { step: "Generating AI insights...", progress: 85 },
-      { step: "Finalizing comprehensive analysis...", progress: 95 },
-      { step: "Analysis complete!", progress: 100 },
-    ]
-
-    let currentStepIndex = 0
-    const interval = setInterval(() => {
-      if (currentStepIndex < steps.length) {
-        setCurrentStep(steps[currentStepIndex].step)
-        setProgress(steps[currentStepIndex].progress)
-        currentStepIndex++
-      } else {
-        clearInterval(interval)
-      }
-    }, 2000)
-
-    return interval
-  }
-
-  const handleUpload = async () => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
     if (!file) return
 
-    setUploading(true)
+    setIsUploading(true)
+    setUploadProgress(0)
+    setCurrentStep("Uploading file...")
     setError(null)
-    setProgress(0)
-    setCurrentStep("Starting comprehensive analysis...")
-
-    const progressInterval = simulateProgress()
+    setResult(null)
 
     try {
+      // Simulate progress steps
+      const steps = [
+        { step: "Uploading file...", progress: 10 },
+        { step: "Parsing CSV data...", progress: 20 },
+        { step: "Validating manifest structure...", progress: 30 },
+        { step: "Initializing AI analysis...", progress: 40 },
+        { step: "Performing deep market research...", progress: 60 },
+        { step: "Analyzing liquidation scenarios...", progress: 75 },
+        { step: "Calculating risk assessments...", progress: 85 },
+        { step: "Generating strategic insights...", progress: 95 },
+        { step: "Finalizing comprehensive analysis...", progress: 100 },
+      ]
+
+      for (const { step, progress } of steps) {
+        setCurrentStep(step)
+        setUploadProgress(progress)
+        await new Promise((resolve) => setTimeout(resolve, 500))
+      }
+
       const formData = new FormData()
       formData.append("file", file)
 
       const response = await uploadComprehensiveManifest(formData)
 
-      clearInterval(progressInterval)
-
-      if (response.success && response.result) {
+      if (response.success) {
         setResult(response.result)
-        setProgress(100)
         setCurrentStep("Analysis complete!")
       } else {
-        setError(response.error || "Upload failed")
-        setProgress(0)
-        setCurrentStep("")
+        throw new Error(response.error || "Upload failed")
       }
     } catch (err) {
-      clearInterval(progressInterval)
-      setError(err instanceof Error ? err.message : "An unexpected error occurred")
-      setProgress(0)
-      setCurrentStep("")
+      setError(err instanceof Error ? err.message : "An error occurred")
+      setCurrentStep("Upload failed")
     } finally {
-      setUploading(false)
+      setIsUploading(false)
     }
   }
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(value)
+  const viewAnalysis = () => {
+    if (result?.manifestId) {
+      router.push(`/dashboard/manifests/${result.manifestId}/comprehensive`)
+    }
   }
 
   return (
     <div className="space-y-6">
-      {/* Upload Section */}
-      <Card className="border-2 border-dashed border-blue-200 bg-blue-50/50">
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Brain className="h-6 w-6 text-blue-600" />
-            </div>
-            <div>
-              <CardTitle className="text-xl">Comprehensive AI Analysis</CardTitle>
-              <CardDescription>
-                Upload your manifest for deep research, market analysis, and strategic insights
-              </CardDescription>
-            </div>
+      {/* Upload Card */}
+      <Card className="border-2 border-dashed border-gray-300 hover:border-gray-400 transition-colors">
+        <CardHeader className="text-center">
+          <div className="mx-auto w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
+            <Brain className="h-6 w-6 text-blue-600" />
           </div>
+          <CardTitle className="text-xl">Comprehensive AI Analysis</CardTitle>
+          <CardDescription>
+            Upload your manifest for deep market research, risk assessment, and strategic insights
+          </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Features */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <div className="flex items-center gap-2 p-3 bg-white rounded-lg border">
-              <Search className="h-5 w-5 text-blue-500" />
-              <div>
-                <div className="font-medium text-sm">Deep Research</div>
-                <div className="text-xs text-gray-500">Market & pricing analysis</div>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 p-3 bg-white rounded-lg border">
-              <Brain className="h-5 w-5 text-purple-500" />
-              <div>
-                <div className="font-medium text-sm">AI Thinking</div>
-                <div className="text-xs text-gray-500">Transparent reasoning</div>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 p-3 bg-white rounded-lg border">
-              <BarChart3 className="h-5 w-5 text-green-500" />
-              <div>
-                <div className="font-medium text-sm">ROI Analysis</div>
-                <div className="text-xs text-gray-500">Profit projections</div>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 p-3 bg-white rounded-lg border">
-              <Target className="h-5 w-5 text-orange-500" />
-              <div>
-                <div className="font-medium text-sm">Strategy</div>
-                <div className="text-xs text-gray-500">Actionable recommendations</div>
-              </div>
-            </div>
-          </div>
-
-          {/* File Upload */}
+        <CardContent>
           <div className="space-y-4">
-            <div className="flex items-center gap-4">
-              <input
-                type="file"
-                accept=".csv"
-                onChange={handleFileChange}
-                className="hidden"
-                id="comprehensive-file-upload"
-              />
+            <div className="flex items-center justify-center w-full">
               <label
                 htmlFor="comprehensive-file-upload"
-                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50"
+                className={`flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 ${
+                  isUploading ? "pointer-events-none opacity-50" : ""
+                }`}
               >
-                <FileText className="h-4 w-4" />
-                Choose CSV File
-              </label>
-              {file && (
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-500" />
-                  <span className="text-sm font-medium">{file.name}</span>
-                  <Badge variant="outline">{(file.size / 1024).toFixed(1)} KB</Badge>
+                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                  <Upload className="w-8 h-8 mb-4 text-gray-500" />
+                  <p className="mb-2 text-sm text-gray-500">
+                    <span className="font-semibold">Click to upload</span> or drag and drop
+                  </p>
+                  <p className="text-xs text-gray-500">CSV files only</p>
                 </div>
-              )}
+                <input
+                  id="comprehensive-file-upload"
+                  type="file"
+                  className="hidden"
+                  accept=".csv"
+                  onChange={handleFileUpload}
+                  disabled={isUploading}
+                />
+              </label>
             </div>
 
-            <Button
-              onClick={handleUpload}
-              disabled={!file || uploading}
-              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-              size="lg"
-            >
-              {uploading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Analyzing...
-                </>
-              ) : (
-                <>
-                  <Zap className="h-4 w-4 mr-2" />
-                  Start Comprehensive Analysis
-                </>
-              )}
-            </Button>
+            {/* Features */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+              <div className="flex items-center gap-2 p-2 bg-blue-50 rounded">
+                <TrendingUp className="h-4 w-4 text-blue-600" />
+                <span>Market Research</span>
+              </div>
+              <div className="flex items-center gap-2 p-2 bg-green-50 rounded">
+                <DollarSign className="h-4 w-4 text-green-600" />
+                <span>Profit Analysis</span>
+              </div>
+              <div className="flex items-center gap-2 p-2 bg-purple-50 rounded">
+                <BarChart3 className="h-4 w-4 text-purple-600" />
+                <span>Risk Assessment</span>
+              </div>
+              <div className="flex items-center gap-2 p-2 bg-orange-50 rounded">
+                <Brain className="h-4 w-4 text-orange-600" />
+                <span>AI Insights</span>
+              </div>
+            </div>
           </div>
-
-          {/* Progress */}
-          {uploading && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">{currentStep}</span>
-                <span className="text-sm text-gray-500">{progress}%</span>
-              </div>
-              <Progress value={progress} className="h-2" />
-              <div className="flex items-center gap-2 text-sm text-blue-600">
-                <Brain className="h-4 w-4 animate-pulse" />
-                <span>AI is performing deep analysis on your manifest...</span>
-              </div>
-            </div>
-          )}
-
-          {/* Error */}
-          {error && (
-            <Alert variant="destructive">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertTitle>Analysis Failed</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
         </CardContent>
       </Card>
 
-      {/* Results */}
-      {result && (
-        <Card className="border-2 border-green-200 bg-green-50/50">
+      {/* Progress Card */}
+      {isUploading && (
+        <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <Award className="h-6 w-6 text-green-600" />
-                </div>
-                <div>
-                  <CardTitle className="text-xl text-green-800">Analysis Complete!</CardTitle>
-                  <CardDescription className="text-green-700">
-                    Comprehensive AI analysis with deep research insights
-                  </CardDescription>
-                </div>
-              </div>
-              <Badge variant="outline" className="bg-white">
-                <Clock className="h-3 w-3 mr-1" />
-                {(result.processingTime / 1000).toFixed(1)}s
-              </Badge>
-            </div>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5 animate-spin" />
+              Processing Analysis
+            </CardTitle>
+            <CardDescription>Performing comprehensive market research and analysis...</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Key Metrics */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              <div className="bg-white p-4 rounded-lg border border-green-200">
-                <div className="flex items-center gap-2 mb-2">
-                  <TrendingUp className="h-5 w-5 text-green-600" />
-                  <span className="text-sm font-medium text-gray-600">Expected Profit</span>
+          <CardContent>
+            <div className="space-y-4">
+              <div>
+                <div className="flex justify-between text-sm mb-2">
+                  <span>{currentStep}</span>
+                  <span>{uploadProgress}%</span>
                 </div>
-                <div className="text-2xl font-bold text-green-600">
-                  {formatCurrency(result.manifestInsights.executiveSummary.expectedProfit)}
-                </div>
-                <div className="text-xs text-gray-500 mt-1">
-                  {result.manifestInsights.executiveSummary.averageROI.toFixed(1)}% ROI
-                </div>
+                <Progress value={uploadProgress} className="h-2" />
               </div>
-
-              <div className="bg-white p-4 rounded-lg border border-green-200">
-                <div className="flex items-center gap-2 mb-2">
-                  <BarChart3 className="h-5 w-5 text-blue-600" />
-                  <span className="text-sm font-medium text-gray-600">Total Investment</span>
-                </div>
-                <div className="text-2xl font-bold text-blue-600">
-                  {formatCurrency(result.manifestInsights.executiveSummary.totalInvestment)}
-                </div>
-                <div className="text-xs text-gray-500 mt-1">{result.analyzedItems} items analyzed</div>
-              </div>
-
-              <div className="bg-white p-4 rounded-lg border border-green-200">
-                <div className="flex items-center gap-2 mb-2">
-                  <Target className="h-5 w-5 text-purple-600" />
-                  <span className="text-sm font-medium text-gray-600">AI Confidence</span>
-                </div>
-                <div className="text-2xl font-bold text-purple-600">
-                  {Math.round(result.manifestInsights.executiveSummary.confidenceScore * 100)}%
-                </div>
-                <Progress value={result.manifestInsights.executiveSummary.confidenceScore * 100} className="mt-2 h-2" />
-              </div>
-
-              <div className="bg-white p-4 rounded-lg border border-green-200">
-                <div className="flex items-center gap-2 mb-2">
-                  <Award className="h-5 w-5 text-orange-600" />
-                  <span className="text-sm font-medium text-gray-600">Market Condition</span>
-                </div>
-                <div className="text-lg font-bold text-orange-600">
-                  {result.manifestInsights.marketIntelligence.overallMarketCondition}
-                </div>
-                <div className="text-xs text-gray-500 mt-1">Current assessment</div>
+              <div className="text-xs text-gray-500">
+                This may take a few moments as we perform deep market research and analysis...
               </div>
             </div>
+          </CardContent>
+        </Card>
+      )}
 
-            {/* Key Highlights */}
-            <div className="bg-white p-4 rounded-lg border border-green-200">
-              <h4 className="font-semibold mb-3 flex items-center gap-2">
-                <Zap className="h-4 w-4 text-yellow-500" />
-                Key Strategic Highlights
-              </h4>
-              <div className="grid gap-2 md:grid-cols-2">
-                {result.manifestInsights.executiveSummary.keyHighlights.map((highlight, index) => (
-                  <div key={index} className="flex items-start gap-2 text-sm">
-                    <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
-                    <span>{highlight}</span>
+      {/* Error Card */}
+      {error && (
+        <Alert className="border-red-200 bg-red-50">
+          <AlertTriangle className="h-4 w-4 text-red-600" />
+          <AlertDescription className="text-red-800">
+            <strong>Upload Failed:</strong> {error}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Success Card */}
+      {result && (
+        <Card className="border-green-200 bg-green-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-green-800">
+              <CheckCircle className="h-5 w-5" />
+              Analysis Complete!
+            </CardTitle>
+            <CardDescription className="text-green-700">
+              Your manifest has been analyzed with comprehensive market research and strategic insights.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {/* Key Metrics */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-600">
+                    ${result.executiveSummary?.totalPotentialProfit?.toLocaleString() || "0"}
                   </div>
-                ))}
+                  <div className="text-sm text-green-700">Potential Profit</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-600">
+                    {result.executiveSummary?.averageROI?.toFixed(1) || "0"}%
+                  </div>
+                  <div className="text-sm text-blue-700">Average ROI</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-purple-600">{result.validItems || 0}</div>
+                  <div className="text-sm text-purple-700">Items Analyzed</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-orange-600">
+                    {((result.executiveSummary?.aiConfidence || 0) * 100).toFixed(0)}%
+                  </div>
+                  <div className="text-sm text-orange-700">AI Confidence</div>
+                </div>
               </div>
-            </div>
 
-            {/* Action Button */}
-            <div className="flex justify-center">
-              <Button
-                asChild
-                size="lg"
-                className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700"
-              >
-                <a href={`/dashboard/manifests/${result.manifestId}/comprehensive`}>
-                  <Eye className="h-4 w-4 mr-2" />
-                  View Complete Analysis
-                </a>
-              </Button>
+              {/* Market Condition */}
+              <div className="flex items-center justify-center gap-2">
+                <span className="text-sm text-gray-600">Market Condition:</span>
+                <Badge
+                  className={`${
+                    result.executiveSummary?.marketCondition === "Excellent"
+                      ? "bg-green-100 text-green-800"
+                      : result.executiveSummary?.marketCondition === "Good"
+                        ? "bg-blue-100 text-blue-800"
+                        : result.executiveSummary?.marketCondition === "Fair"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : "bg-red-100 text-red-800"
+                  }`}
+                >
+                  {result.executiveSummary?.marketCondition || "Unknown"}
+                </Badge>
+              </div>
+
+              {/* Action Button */}
+              <div className="flex justify-center">
+                <Button onClick={viewAnalysis} className="bg-green-600 hover:bg-green-700">
+                  <FileText className="h-4 w-4 mr-2" />
+                  View Comprehensive Analysis
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
