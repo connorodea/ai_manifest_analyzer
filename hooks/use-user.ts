@@ -1,40 +1,65 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { getCurrentUser } from "@/lib/actions/auth-actions"
 
 interface User {
   id: string
+  name: string
   email: string
-  firstName: string
-  lastName: string
-  company: string
-  role: string
-  subscriptionTier: string
-  subscriptionStatus: string
-  createdAt: Date
-  emailVerified: boolean
+  avatar?: string
+  subscription?: {
+    plan: string
+    status: string
+    expiresAt?: string
+  }
 }
 
 export function useUser() {
   const [user, setUser] = useState<User | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    async function fetchUser() {
+    // In a real app, this would fetch from your auth system
+    // For now, we'll simulate a logged-in user
+    const simulateUser = async () => {
       try {
-        const userData = await getCurrentUser()
-        setUser(userData)
+        // Simulate API call delay
+        await new Promise((resolve) => setTimeout(resolve, 500))
+
+        // Check if user is logged in (you'd check cookies/tokens here)
+        const isLoggedIn = true // This would be actual auth check
+
+        if (isLoggedIn) {
+          setUser({
+            id: "demo-user-123",
+            name: "Demo User",
+            email: "demo@example.com",
+            avatar: "/placeholder.svg?height=32&width=32",
+            subscription: {
+              plan: "Pro",
+              status: "active",
+              expiresAt: "2024-12-31",
+            },
+          })
+        }
       } catch (error) {
         console.error("Error fetching user:", error)
-        setUser(null)
       } finally {
-        setIsLoading(false)
+        setLoading(false)
       }
     }
 
-    fetchUser()
+    simulateUser()
   }, [])
 
-  return { user, isLoading }
+  const updateUser = (updates: Partial<User>) => {
+    setUser((current) => (current ? { ...current, ...updates } : null))
+  }
+
+  return {
+    user,
+    loading,
+    updateUser,
+    isAuthenticated: !!user,
+  }
 }

@@ -1,167 +1,165 @@
 "use server"
 
-import { generateText } from "ai"
+import { generateObject } from "ai"
 import { openai } from "@ai-sdk/openai"
+import { z } from "zod"
 
-export async function estimateValue(
+const ValuationSchema = z.object({
+  estimatedValue: z.number(),
+  marketHigh: z.number(),
+  marketLow: z.number(),
+  confidence: z.number().min(0).max(1),
+  factors: z.array(z.string()),
+  comparables: z.array(
+    z.object({
+      source: z.string(),
+      price: z.number(),
+      condition: z.string(),
+    }),
+  ),
+  reasoning: z.string(),
+})
+
+export type ValuationResult = z.infer<typeof ValuationSchema>
+
+export async function valuateItem(
   description: string,
-  category: string,
-  brand: string,
-  model: string,
   condition: string,
-): Promise<{
-  estimatedValue: number
-  marketValueLow: number
-  marketValueHigh: number
-  marketScore: number
-  demandScore: number
-  seasonalityFactor: number
-  comparableSales: any[]
-}> {
+  category: string,
+  brand?: string,
+): Promise<ValuationResult> {
   try {
-    const { text } = await generateText({
-      model: openai("gpt-4o"),
-      prompt: `Estimate the market value for this product:
+    console.log(`💰 Valuating item: ${description.substring(0, 50)}...`)
 
-Description: "${description}"
+    const valuation = await generateObject({
+      model: openai("gpt-4o"),
+      schema: ValuationSchema,
+      prompt: `Provide a detailed valuation for this liquidation item:
+
+Product: "${description}"
 Category: ${category}
-Brand: ${brand}
-Model: ${model}
+Brand: ${brand || "Unknown"}
 Condition: ${condition}
 
-Consider current market conditions, demand, and seasonality. Respond with a JSON object containing:
-- estimatedValue: best estimate in USD
-- marketValueLow: lowest reasonable price
-- marketValueHigh: highest reasonable price
-- marketScore: market performance score (1-100)
-- demandScore: demand level score (1-100)
-- seasonalityFactor: seasonal adjustment (0.5-1.5)
+Research and provide:
+1. Realistic estimated liquidation value (what it would sell for in liquidation market)
+2. Market high value (best case scenario, excellent condition, ideal buyer)
+3. Market low value (worst case scenario, poor condition, quick sale)
+4. Confidence level in this valuation (0-1)
+5. Key factors affecting the valuation
+6. Comparable sales data (if available)
+7. Detailed reasoning for the valuation
 
-Example response:
-{
-  "estimatedValue": 450.00,
-  "marketValueLow": 380.00,
-  "marketValueHigh": 520.00,
-  "marketScore": 75,
-  "demandScore": 82,
-  "seasonalityFactor": 1.1
-}`,
-      system: "You are a market valuation expert with access to current pricing data. Always respond with valid JSON.",
+Consider:
+- Current market demand for this product type
+- Brand value and recognition
+- Condition impact on price
+- Seasonal factors
+- Competition in the liquidation market
+- Typical liquidation discounts (usually 20-60% off retail)
+- Resale platform fees and costs`,
+
+      system: `You are a professional appraiser specializing in liquidation and resale markets. Provide realistic, conservative valuations based on actual market conditions. Consider that liquidation items typically sell for 20-60% below retail prices.`,
     })
 
-    const result = JSON.parse(text)
-
-    return {
-      estimatedValue: result.estimatedValue || 0,
-      marketValueLow: result.marketValueLow || 0,
-      marketValueHigh: result.marketValueHigh || 0,
-      marketScore: result.marketScore || 50,
-      demandScore: result.demandScore || 50,
-      seasonalityFactor: result.seasonalityFactor || 1.0,
-      comparableSales: [], // In a real app, we would fetch actual comparable sales data
-    }
+    console.log(`✅ Valuation completed`)
+    return valuation.object
   } catch (error) {
-    console.error("Error estimating value:", error)
+    console.error(`❌ Valuation failed:`, error)
 
-    // Fallback to simple estimation based on category
-    const baseValue = getCategoryBaseValue(category)
-    const conditionMultiplier = getConditionMultiplier(condition)
-
+    // Fallback valuation
     return {
-      estimatedValue: baseValue * conditionMultiplier,
-      marketValueLow: baseValue * conditionMultiplier * 0.8,
-      marketValueHigh: baseValue * conditionMultiplier * 1.2,
-      marketScore: 50,
-      demandScore: 50,
-      seasonalityFactor: 1.0,
-      comparableSales: [],
+      estimatedValue: 25, // Conservative fallback
+      marketHigh: 50,
+      marketLow: 10,
+      confidence: 0.3,
+      factors: ["Analysis failed - using conservative estimates"],
+      comparables: [],
+      reasoning: "Unable to complete detailed valuation analysis. Using conservative fallback estimates.",
     }
   }
 }
 
-export async function assessRisk(
-  description: string,
-  category: string,
-  brand: string,
-  model: string,
-  estimatedValue: number,
-): Promise<{
-  riskScore: number
-  authenticityScore: number
-  riskFactors: string[]
+export async function batchValuateItems(
+  items: Array<{
+    description: string
+    condition: string
+    category: string
+    brand?: string
+  }>,
+): Promise<ValuationResult[]> {
+  console.log(`💰 Starting batch valuation for ${items.length} items...`)
+
+  const results: ValuationResult[] = []
+  const batchSize = 3
+
+  for (let i = 0; i < items.length; i += batchSize) {
+    const batch = items.slice(i, i + batchSize)
+    console.log(`📊 Processing valuation batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(items.length / batchSize)}`)
+
+    const batchPromises = batch.map((item) => valuateItem(item.description, item.condition, item.category, item.brand))
+
+    const batchResults = await Promise.all(batchPromises)
+    results.push(...batchResults)
+
+    // Small delay between batches
+    if (i + batchSize < items.length) {
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+    }
+  }
+
+  console.log(`✅ Batch valuation completed`)
+  return results
+}
+
+export async function getMarketTrends(category: string): Promise<{
+  trend: "rising" | "stable" | "declining"
+  confidence: number
+  factors: string[]
+  seasonality: string
 }> {
   try {
-    const { text } = await generateText({
+    console.log(`📈 Analyzing market trends for ${category}...`)
+
+    const trends = await generateObject({
       model: openai("gpt-4o"),
-      prompt: `Assess the risk factors for this product:
+      schema: z.object({
+        trend: z.enum(["rising", "stable", "declining"]),
+        confidence: z.number().min(0).max(1),
+        factors: z.array(z.string()),
+        seasonality: z.string(),
+      }),
+      prompt: `Analyze current market trends for the ${category} category in the liquidation/resale market:
 
-Description: "${description}"
-Category: ${category}
-Brand: ${brand}
-Model: ${model}
-Estimated Value: $${estimatedValue}
+Provide:
+1. Overall trend direction (rising, stable, or declining)
+2. Confidence level in this assessment (0-1)
+3. Key factors driving the trend
+4. Seasonality information and timing considerations
 
-Consider authenticity risk, market saturation, condition issues, and other factors. Respond with a JSON object containing:
-- riskScore: overall risk score (1-100, higher = more risky)
-- authenticityScore: authenticity confidence (1-100, higher = more authentic)
-- riskFactors: array of specific risk factors
+Consider:
+- Current consumer demand
+- Economic factors
+- Seasonal patterns
+- Competition levels
+- Platform changes (eBay, Amazon, etc.)
+- Supply chain impacts
+- Recent market shifts`,
 
-Example response:
-{
-  "riskScore": 25,
-  "authenticityScore": 90,
-  "riskFactors": ["Market saturation", "Seasonal demand"]
-}`,
-      system: "You are a risk assessment expert for liquidation products. Always respond with valid JSON.",
+      system:
+        "You are a market analyst specializing in liquidation and resale markets. Provide current, accurate trend analysis.",
     })
 
-    const result = JSON.parse(text)
-
-    return {
-      riskScore: result.riskScore || 50,
-      authenticityScore: result.authenticityScore || 80,
-      riskFactors: result.riskFactors || [],
-    }
+    console.log(`✅ Market trend analysis completed`)
+    return trends.object
   } catch (error) {
-    console.error("Error assessing risk:", error)
-
-    // Fallback risk assessment
-    const riskScore = Math.floor(Math.random() * 100) + 1
+    console.error(`❌ Market trend analysis failed:`, error)
 
     return {
-      riskScore,
-      authenticityScore: 80,
-      riskFactors: riskScore > 70 ? ["High risk item"] : [],
+      trend: "stable" as const,
+      confidence: 0.5,
+      factors: ["Analysis unavailable"],
+      seasonality: "No seasonal data available",
     }
   }
-}
-
-function getCategoryBaseValue(category: string): number {
-  const categoryValues: Record<string, number> = {
-    Electronics: 200,
-    "Clothing & Accessories": 50,
-    "Home & Garden": 75,
-    "Toys & Games": 30,
-    "Sports & Outdoors": 100,
-    "Health & Beauty": 25,
-    Automotive: 150,
-    "Books & Media": 15,
-    "Industrial Equipment": 500,
-    Other: 50,
-  }
-
-  return categoryValues[category] || 50
-}
-
-function getConditionMultiplier(condition: string): number {
-  const conditionMultipliers: Record<string, number> = {
-    Excellent: 1.0,
-    Good: 0.85,
-    Fair: 0.65,
-    Poor: 0.4,
-    Damaged: 0.2,
-    Unknown: 0.7,
-  }
-
-  return conditionMultipliers[condition] || 0.7
 }

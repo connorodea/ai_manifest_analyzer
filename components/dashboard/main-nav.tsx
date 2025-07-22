@@ -3,46 +3,59 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { Bot } from "lucide-react"
+import { LayoutDashboard, FileText, Settings, TestTube, BarChart3 } from "lucide-react"
+
+const navigation = [
+  {
+    name: "Dashboard",
+    href: "/dashboard",
+    icon: LayoutDashboard,
+  },
+  {
+    name: "Manifests",
+    href: "/dashboard/manifests",
+    icon: FileText,
+  },
+  {
+    name: "Test Analysis",
+    href: "/dashboard/test-analysis",
+    icon: TestTube,
+  },
+  {
+    name: "Analytics",
+    href: "/dashboard/analytics",
+    icon: BarChart3,
+  },
+  {
+    name: "Settings",
+    href: "/dashboard/settings",
+    icon: Settings,
+  },
+]
 
 export function MainNav() {
   const pathname = usePathname()
 
   return (
-    <div className="flex gap-6 md:gap-10">
-      <Link href="/dashboard" className="flex items-center space-x-2">
-        <Bot className="h-6 w-6" />
-        <span className="font-bold inline-block">AI Manifest Analyzer</span>
-      </Link>
-      <nav className="flex gap-6">
-        <Link
-          href="/dashboard"
-          className={cn(
-            "text-sm font-medium transition-colors hover:text-primary",
-            pathname === "/dashboard" ? "text-primary" : "text-muted-foreground",
-          )}
-        >
-          Dashboard
-        </Link>
-        <Link
-          href="/dashboard/manifests"
-          className={cn(
-            "text-sm font-medium transition-colors hover:text-primary",
-            pathname === "/dashboard/manifests" ? "text-primary" : "text-muted-foreground",
-          )}
-        >
-          Manifests
-        </Link>
-        <Link
-          href="/dashboard/analytics"
-          className={cn(
-            "text-sm font-medium transition-colors hover:text-primary",
-            pathname === "/dashboard/analytics" ? "text-primary" : "text-muted-foreground",
-          )}
-        >
-          Analytics
-        </Link>
-      </nav>
-    </div>
+    <nav className="flex items-center space-x-4 lg:space-x-6">
+      {navigation.map((item) => {
+        const Icon = item.icon
+        const isActive = pathname === item.href || pathname.startsWith(item.href + "/")
+
+        return (
+          <Link
+            key={item.name}
+            href={item.href}
+            className={cn(
+              "flex items-center gap-2 text-sm font-medium transition-colors hover:text-primary",
+              isActive ? "text-black dark:text-white" : "text-muted-foreground",
+            )}
+          >
+            <Icon className="h-4 w-4" />
+            {item.name}
+          </Link>
+        )
+      })}
+    </nav>
   )
 }

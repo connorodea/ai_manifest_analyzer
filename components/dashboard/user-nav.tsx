@@ -9,38 +9,26 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Badge } from "@/components/ui/badge"
-import { User, Settings, HelpCircle, LogOut, Crown } from "lucide-react"
-import { logout } from "@/lib/actions/auth-actions"
 import { useUser } from "@/hooks/use-user"
+import { logout } from "@/lib/actions/auth-actions"
 
 export function UserNav() {
-  const { user, isLoading } = useUser()
-
-  if (isLoading) {
-    return <div className="h-8 w-8 rounded-full bg-muted animate-pulse" />
-  }
+  const { user } = useUser()
 
   if (!user) {
     return null
   }
 
-  const getInitials = (firstName: string, lastName: string) => {
-    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
-  }
-
-  const getTierBadge = (tier: string) => {
-    const tierConfig = {
-      starter: { label: "Starter", className: "bg-gray-500" },
-      professional: { label: "Pro", className: "bg-blue-500" },
-      enterprise: { label: "Enterprise", className: "bg-purple-500" },
+  const handleLogout = async () => {
+    try {
+      await logout()
+      window.location.href = "/auth/login"
+    } catch (error) {
+      console.error("Logout failed:", error)
     }
-
-    const config = tierConfig[tier as keyof typeof tierConfig] || tierConfig.starter
-
-    return <Badge className={`${config.className} text-white`}>{config.label}</Badge>
   }
 
   return (
@@ -48,48 +36,37 @@ export function UserNav() {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-8 w-8 rounded-full">
           <Avatar className="h-8 w-8">
-            <AvatarImage src="/placeholder.svg?height=32&width=32" alt={user.firstName} />
-            <AvatarFallback>{getInitials(user.firstName, user.lastName)}</AvatarFallback>
+            <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
+            <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">
-              {user.firstName} {user.lastName}
-            </p>
+            <p className="text-sm font-medium leading-none">{user.name}</p>
             <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
-            <div className="flex items-center gap-2 mt-2">
-              {getTierBadge(user.subscriptionTier)}
-              {user.role === "admin" && (
-                <Badge variant="outline">
-                  <Crown className="h-3 w-3 mr-1" />
-                  Admin
-                </Badge>
-              )}
-            </div>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuItem>
-            <User className="mr-2 h-4 w-4" />
-            <span>Profile</span>
+          <DropdownMenuItem onClick={() => (window.location.href = "/dashboard")}>
+            Dashboard
+            <DropdownMenuShortcut>⇧⌘D</DropdownMenuShortcut>
           </DropdownMenuItem>
-          <DropdownMenuItem>
-            <Settings className="mr-2 h-4 w-4" />
-            <span>Settings</span>
+          <DropdownMenuItem onClick={() => (window.location.href = "/dashboard/settings")}>
+            Settings
+            <DropdownMenuShortcut>⌘S</DropdownMenuShortcut>
           </DropdownMenuItem>
-          <DropdownMenuItem>
-            <HelpCircle className="mr-2 h-4 w-4" />
-            <span>Help</span>
+          <DropdownMenuItem onClick={() => (window.location.href = "/dashboard/manifests")}>
+            Manifests
+            <DropdownMenuShortcut>⌘M</DropdownMenuShortcut>
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => logout()}>
-          <LogOut className="mr-2 h-4 w-4" />
-          <span>Log out</span>
+        <DropdownMenuItem onClick={handleLogout}>
+          Log out
+          <DropdownMenuShortcut>⇧⌘Q</DropdownMenuShortcut>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
