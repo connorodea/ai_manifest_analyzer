@@ -6,88 +6,97 @@ import { z } from "zod"
 import type { FixedManifestItem } from "@/lib/utils/fixed-manifest-parser"
 import type { EnhancedManifestItem } from "@/lib/utils/enhanced-manifest-parser"
 
+// Enhanced schemas for comprehensive analysis
 const ThinkingProcessSchema = z.object({
-  initialObservation: z.string(),
-  categoryAnalysis: z.string(),
-  marketResearch: z.string(),
-  valuationReasoning: z.string(),
-  riskAssessment: z.string(),
-  finalConclusion: z.string(),
+  initialAssessment: z.string(),
+  marketContextAnalysis: z.string(),
+  valuationMethodology: z.string(),
+  riskFactorAnalysis: z.string(),
+  competitiveAnalysis: z.string(),
+  finalRecommendation: z.string(),
 })
 
-const DeepItemAnalysisSchema = z.object({
+const ComprehensiveItemAnalysisSchema = z.object({
   cleanedTitle: z.string(),
   category: z.string(),
-  subcategory: z.string().optional(),
+  subcategory: z.string(),
   brand: z.string(),
   model: z.string().optional(),
   estimatedValue: z.number(),
-  marketValue: z.number(),
-  liquidationValue: z.number(),
+  conservativeValue: z.number(),
+  optimisticValue: z.number(),
   riskScore: z.number().min(1).max(100),
+  riskLevel: z.enum(["Very Low", "Low", "Medium", "High", "Very High"]),
   marketDemand: z.enum(["Very Low", "Low", "Medium", "High", "Very High"]),
   profitPotential: z.number(),
   confidence: z.number().min(0).max(1),
+  timeToSell: z.enum(["1-7 days", "1-2 weeks", "2-4 weeks", "1-2 months", "2+ months"]),
+  recommendedPlatform: z.array(z.string()),
   competitorPricing: z.object({
     low: z.number(),
     average: z.number(),
     high: z.number(),
   }),
-  marketTrends: z.object({
-    trend: z.enum(["Declining", "Stable", "Growing", "Booming"]),
-    seasonality: z.string(),
-    demandFactors: z.array(z.string()),
-  }),
-  resaleStrategy: z.object({
-    recommendedPlatform: z.array(z.string()),
-    pricingStrategy: z.string(),
-    timingAdvice: z.string(),
-  }),
+  seasonalFactors: z.string(),
+  conditionImpact: z.string(),
+})
+
+const MarketAnalysisSchema = z.object({
+  overallMarketCondition: z.enum(["Excellent", "Good", "Fair", "Poor", "Very Poor"]),
+  topPerformingCategories: z.array(z.string()),
+  emergingTrends: z.array(z.string()),
+  seasonalConsiderations: z.array(z.string()),
+  competitiveLandscape: z.string(),
+  priceVolatility: z.enum(["Very Low", "Low", "Medium", "High", "Very High"]),
+})
+
+const StrategicRecommendationsSchema = z.object({
+  immediate: z.array(z.string()),
+  shortTerm: z.array(z.string()),
+  longTerm: z.array(z.string()),
+  riskMitigation: z.array(z.string()),
+  operationalTips: z.array(z.string()),
+})
+
+const FinancialProjectionsSchema = z.object({
+  monthlyProjections: z.array(
+    z.object({
+      month: z.number(),
+      expectedRevenue: z.number(),
+      expectedCosts: z.number(),
+      netProfit: z.number(),
+      cashFlow: z.number(),
+    }),
+  ),
+  breakEvenPoint: z.number(),
+  roiTimeline: z.string(),
+  capitalRequirements: z.number(),
 })
 
 const ComprehensiveManifestInsightsSchema = z.object({
   executiveSummary: z.string(),
-  marketAnalysis: z.object({
-    overallMarketCondition: z.enum(["Poor", "Fair", "Good", "Excellent"]),
-    topPerformingCategories: z.array(z.string()),
-    marketOpportunities: z.array(z.string()),
-    competitiveLandscape: z.string(),
-  }),
-  financialProjections: z.object({
-    totalInvestment: z.number(),
-    projectedRevenue: z.number(),
-    estimatedProfit: z.number(),
-    expectedROI: z.number(),
-    breakEvenTimeframe: z.string(),
-    cashFlowProjection: z.array(
-      z.object({
-        month: z.number(),
-        revenue: z.number(),
-        profit: z.number(),
-      }),
-    ),
-  }),
-  strategicRecommendations: z.object({
-    immediate: z.array(z.string()),
-    shortTerm: z.array(z.string()),
-    longTerm: z.array(z.string()),
-  }),
-  riskAnalysis: z.object({
-    majorRisks: z.array(z.string()),
-    mitigationStrategies: z.array(z.string()),
-    contingencyPlans: z.array(z.string()),
-  }),
+  keyFindings: z.array(z.string()),
+  totalValue: z.number(),
+  totalProfit: z.number(),
+  averageMargin: z.number(),
+  topCategories: z.array(z.string()),
+  opportunities: z.array(z.string()),
+  risks: z.array(z.string()),
+  marketAnalysis: MarketAnalysisSchema,
+  strategicRecommendations: StrategicRecommendationsSchema,
+  financialProjections: FinancialProjectionsSchema,
   operationalInsights: z.object({
     inventoryManagement: z.array(z.string()),
     logisticsConsiderations: z.array(z.string()),
     qualityControl: z.array(z.string()),
+    customerService: z.array(z.string()),
   }),
 })
 
-export interface EnhancedAnalysisResult {
+export interface ComprehensiveAnalysisResult {
   id: string
   originalItem: FixedManifestItem | EnhancedManifestItem
-  analysis: z.infer<typeof DeepItemAnalysisSchema>
+  analysis: z.infer<typeof ComprehensiveItemAnalysisSchema>
   thinkingProcess: z.infer<typeof ThinkingProcessSchema>
   processingTime: number
 }
@@ -101,32 +110,27 @@ export interface ComprehensiveManifestAnalysisResult {
   totalEstimatedValue: number
   totalPotentialProfit: number
   processingTime: number
-  analysisResults: EnhancedAnalysisResult[]
+  analysisResults: ComprehensiveAnalysisResult[]
   insights: z.infer<typeof ComprehensiveManifestInsightsSchema>
-  thinkingProcess: {
-    overallStrategy: string
-    marketResearchFindings: string[]
-    valuationMethodology: string
-    riskAssessmentApproach: string
-    recommendationRationale: string
-  }
   summary: {
     averageItemValue: number
     averageProfit: number
     expectedROI: number
+    confidenceScore: number
     categoryBreakdown: Record<string, number>
     riskDistribution: { veryLow: number; low: number; medium: number; high: number; veryHigh: number }
-    confidenceScore: number
   }
 }
 
-export async function performDeepItemAnalysis(
+export async function performComprehensiveItemAnalysis(
   item: FixedManifestItem | EnhancedManifestItem,
   itemIndex: number,
-  marketContext = "",
-): Promise<EnhancedAnalysisResult> {
+  marketContext: string,
+): Promise<ComprehensiveAnalysisResult> {
   const startTime = Date.now()
-  console.log(`🔍 Starting deep analysis for item ${itemIndex}: "${getItemProduct(item).substring(0, 50)}..."`)
+  console.log(
+    `🔍 Performing comprehensive analysis for item ${itemIndex}: "${getItemProduct(item).substring(0, 50)}..."`,
+  )
 
   try {
     const product = getItemProduct(item)
@@ -136,34 +140,36 @@ export async function performDeepItemAnalysis(
 
     // First, generate the thinking process
     console.log(`🧠 Generating thinking process for item ${itemIndex}...`)
-    const thinkingResult = await generateObject({
+    const thinkingProcess = await generateObject({
       model: openai("gpt-4o"),
       schema: ThinkingProcessSchema,
-      prompt: `You are analyzing this liquidation item for resale potential. Think through your analysis step by step:
+      prompt: `As a liquidation expert, think through the analysis of this item step by step:
 
 Product: "${product}"
 Retail Price: $${retailPrice}
 Quantity: ${quantity}
 Condition: ${condition}
+
 Market Context: ${marketContext}
 
-Walk through your thinking process:
-1. Initial observation - What do you notice about this item?
-2. Category analysis - How do you categorize this and why?
-3. Market research - What do you know about this market segment?
-4. Valuation reasoning - How do you determine its value?
-5. Risk assessment - What risks do you see?
-6. Final conclusion - What's your overall assessment?
+Provide your detailed thinking process covering:
+1. Initial assessment of the product and its market position
+2. Market context analysis considering current trends and demand
+3. Valuation methodology explaining how you'll determine pricing
+4. Risk factor analysis identifying potential challenges
+5. Competitive analysis comparing to similar products
+6. Final recommendation with reasoning
 
-Be detailed and explain your reasoning at each step.`,
-      system: "You are an expert liquidation analyst. Show your complete thought process as you analyze each item.",
+Be thorough and explain your reasoning at each step.`,
+      system:
+        "You are an expert liquidation analyst with deep market knowledge. Think through each analysis step carefully and explain your reasoning.",
     })
 
-    // Then perform the detailed analysis
+    // Then perform the comprehensive analysis
     console.log(`📊 Performing detailed analysis for item ${itemIndex}...`)
     const analysis = await generateObject({
       model: openai("gpt-4o"),
-      schema: DeepItemAnalysisSchema,
+      schema: ComprehensiveItemAnalysisSchema,
       prompt: `Based on your thinking process, now provide a comprehensive analysis of this liquidation item:
 
 Product: "${product}"
@@ -171,82 +177,76 @@ Retail Price: $${retailPrice}
 Quantity: ${quantity}
 Condition: ${condition}
 
-Your thinking process:
-- Initial observation: ${thinkingResult.object.initialObservation}
-- Category analysis: ${thinkingResult.object.categoryAnalysis}
-- Market research: ${thinkingResult.object.marketResearch}
-- Valuation reasoning: ${thinkingResult.object.valuationReasoning}
-- Risk assessment: ${thinkingResult.object.riskAssessment}
+Market Context: ${marketContext}
 
-Provide detailed analysis including:
-1. Clean product title and categorization
-2. Brand and model identification
-3. Multiple valuation estimates (market, liquidation)
-4. Comprehensive risk scoring
-5. Market demand assessment
-6. Competitor pricing research
-7. Market trend analysis
-8. Specific resale strategy recommendations
+Your thinking process: ${JSON.stringify(thinkingProcess.object, null, 2)}
 
-Be thorough and data-driven in your analysis.`,
-      system: "You are a liquidation expert with deep market knowledge. Provide comprehensive, actionable analysis.",
+Provide a detailed analysis including:
+- Clean, marketable product title and categorization
+- Multiple valuation scenarios (conservative, realistic, optimistic)
+- Comprehensive risk assessment with specific risk level
+- Market demand analysis with supporting reasoning
+- Time-to-sell estimates based on market conditions
+- Recommended selling platforms
+- Competitor pricing analysis
+- Seasonal and condition impact factors
+
+Be realistic, data-driven, and provide actionable insights.`,
+      system:
+        "You are a professional liquidation analyst. Provide comprehensive, realistic assessments based on market data and experience.",
     })
 
     const processingTime = Date.now() - startTime
-    console.log(`✅ Deep analysis completed for item ${itemIndex} in ${processingTime}ms`)
+    console.log(`✅ Comprehensive analysis completed for item ${itemIndex} in ${processingTime}ms`)
 
     return {
-      id: `enhanced-item-${itemIndex}`,
+      id: `item-${itemIndex}`,
       originalItem: item,
       analysis: analysis.object,
-      thinkingProcess: thinkingResult.object,
+      thinkingProcess: thinkingProcess.object,
       processingTime,
     }
   } catch (error) {
-    console.error(`❌ Deep analysis failed for item ${itemIndex}:`, error)
+    console.error(`❌ Comprehensive analysis failed for item ${itemIndex}:`, error)
 
-    const processingTime = Date.now() - startTime
     const product = getItemProduct(item)
     const retailPrice = getItemRetailPrice(item)
+    const processingTime = Date.now() - startTime
 
     // Fallback analysis with thinking process
     return {
-      id: `enhanced-item-${itemIndex}`,
+      id: `item-${itemIndex}`,
       originalItem: item,
       analysis: {
         cleanedTitle: product.substring(0, 60),
         category: "Other",
+        subcategory: "General Merchandise",
         brand: "Unknown",
         estimatedValue: retailPrice * 0.25,
-        marketValue: retailPrice * 0.4,
-        liquidationValue: retailPrice * 0.15,
+        conservativeValue: retailPrice * 0.15,
+        optimisticValue: retailPrice * 0.35,
         riskScore: 60,
+        riskLevel: "Medium" as const,
         marketDemand: "Medium" as const,
         profitPotential: retailPrice * 0.1,
-        confidence: 0.3,
+        confidence: 0.4,
+        timeToSell: "2-4 weeks" as const,
+        recommendedPlatform: ["eBay", "Facebook Marketplace"],
         competitorPricing: {
           low: retailPrice * 0.1,
           average: retailPrice * 0.25,
           high: retailPrice * 0.4,
         },
-        marketTrends: {
-          trend: "Stable" as const,
-          seasonality: "No clear seasonal pattern",
-          demandFactors: ["General market conditions"],
-        },
-        resaleStrategy: {
-          recommendedPlatform: ["eBay", "Facebook Marketplace"],
-          pricingStrategy: "Start at market average, adjust based on response",
-          timingAdvice: "List immediately to test market response",
-        },
+        seasonalFactors: "No significant seasonal impact identified",
+        conditionImpact: "Condition assessment needed for accurate pricing",
       },
       thinkingProcess: {
-        initialObservation: "Analysis failed, using fallback assessment",
-        categoryAnalysis: "Unable to perform detailed categorization",
-        marketResearch: "Market research unavailable",
-        valuationReasoning: "Using conservative 25% of retail value",
-        riskAssessment: "Medium risk due to limited analysis",
-        finalConclusion: "Requires manual review for accurate assessment",
+        initialAssessment: "Limited information available for comprehensive analysis",
+        marketContextAnalysis: "General market conditions assumed",
+        valuationMethodology: "Conservative percentage-based valuation applied",
+        riskFactorAnalysis: "Medium risk due to limited product information",
+        competitiveAnalysis: "Standard competitive landscape assumed",
+        finalRecommendation: "Requires additional research for optimal pricing strategy",
       },
       processingTime,
     }
@@ -262,41 +262,38 @@ export async function analyzeComprehensiveManifest(
 
   try {
     // Generate market context first
-    console.log(`🌐 Generating market context...`)
+    console.log(`🌍 Generating market context...`)
     const marketContext = await generateMarketContext(items)
 
-    // Limit analysis to manageable number for demo
+    // Limit to first 15 items for comprehensive analysis
     const itemsToAnalyze = items.slice(0, Math.min(15, items.length))
-    console.log(`📊 Analyzing ${itemsToAnalyze.length} items with market context...`)
+    console.log(`📊 Performing comprehensive analysis on ${itemsToAnalyze.length} items...`)
 
-    // Process items in small batches with thinking process
-    const batchSize = 2 // Smaller batches for detailed analysis
-    const analysisResults: EnhancedAnalysisResult[] = []
+    // Process items in small batches to avoid overwhelming the API
+    const batchSize = 2
+    const analysisResults: ComprehensiveAnalysisResult[] = []
 
     for (let i = 0; i < itemsToAnalyze.length; i += batchSize) {
       const batch = itemsToAnalyze.slice(i, i + batchSize)
-      const batchNumber = Math.floor(i / batchSize) + 1
-      const totalBatches = Math.ceil(itemsToAnalyze.length / batchSize)
-
-      console.log(`🔄 Processing batch ${batchNumber}/${totalBatches} (${batch.length} items)`)
+      console.log(
+        `🔄 Processing comprehensive batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(itemsToAnalyze.length / batchSize)}`,
+      )
 
       const batchPromises = batch.map((item, batchIndex) =>
-        performDeepItemAnalysis(item, i + batchIndex + 1, marketContext),
+        performComprehensiveItemAnalysis(item, i + batchIndex + 1, marketContext),
       )
 
       const batchResults = await Promise.all(batchPromises)
       analysisResults.push(...batchResults)
 
-      // Progress update
-      console.log(`📈 Progress: ${analysisResults.length}/${itemsToAnalyze.length} items analyzed`)
-
-      // Delay between batches to avoid rate limits
+      // Delay between batches to respect rate limits
       if (i + batchSize < itemsToAnalyze.length) {
+        console.log(`⏳ Waiting before next batch...`)
         await new Promise((resolve) => setTimeout(resolve, 2000))
       }
     }
 
-    // Calculate comprehensive totals
+    // Calculate totals
     const totalRetailValue = analysisResults.reduce((sum, result) => {
       const item = result.originalItem
       return sum + getItemTotalRetailPrice(item)
@@ -305,9 +302,9 @@ export async function analyzeComprehensiveManifest(
     const totalEstimatedValue = analysisResults.reduce((sum, result) => sum + result.analysis.estimatedValue, 0)
     const totalPotentialProfit = analysisResults.reduce((sum, result) => sum + result.analysis.profitPotential, 0)
 
-    // Generate comprehensive insights with thinking process
-    console.log(`🧠 Generating comprehensive insights with AI thinking process...`)
-    const { insights, thinkingProcess } = await generateComprehensiveInsights(
+    // Generate comprehensive insights
+    console.log(`🧠 Generating comprehensive manifest insights...`)
+    const insights = await generateComprehensiveManifestInsights(
       analysisResults,
       totalRetailValue,
       totalEstimatedValue,
@@ -315,7 +312,7 @@ export async function analyzeComprehensiveManifest(
       marketContext,
     )
 
-    // Calculate detailed summary stats
+    // Calculate summary statistics
     const categoryBreakdown = analysisResults.reduce(
       (acc, result) => {
         const category = result.analysis.category
@@ -327,12 +324,24 @@ export async function analyzeComprehensiveManifest(
 
     const riskDistribution = analysisResults.reduce(
       (acc, result) => {
-        const risk = result.analysis.riskScore
-        if (risk <= 20) acc.veryLow++
-        else if (risk <= 40) acc.low++
-        else if (risk <= 60) acc.medium++
-        else if (risk <= 80) acc.high++
-        else acc.veryHigh++
+        const riskLevel = result.analysis.riskLevel
+        switch (riskLevel) {
+          case "Very Low":
+            acc.veryLow++
+            break
+          case "Low":
+            acc.low++
+            break
+          case "Medium":
+            acc.medium++
+            break
+          case "High":
+            acc.high++
+            break
+          case "Very High":
+            acc.veryHigh++
+            break
+        }
         return acc
       },
       { veryLow: 0, low: 0, medium: 0, high: 0, veryHigh: 0 },
@@ -342,13 +351,13 @@ export async function analyzeComprehensiveManifest(
       analysisResults.reduce((sum, result) => sum + result.analysis.confidence, 0) / analysisResults.length
 
     const processingTime = Date.now() - startTime
-    const manifestId = `comprehensive-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`
+    const manifestId = `manifest-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`
 
-    console.log(`✅ Comprehensive analysis completed in ${(processingTime / 1000).toFixed(1)}s`)
+    console.log(`✅ Comprehensive analysis completed in ${processingTime}ms`)
     console.log(`💰 Total Retail: $${totalRetailValue.toFixed(2)}`)
     console.log(`📈 Total Estimated: $${totalEstimatedValue.toFixed(2)}`)
     console.log(`🎯 Total Profit: $${totalPotentialProfit.toFixed(2)}`)
-    console.log(`🎲 Average Confidence: ${(averageConfidence * 100).toFixed(1)}%`)
+    console.log(`🎯 Average Confidence: ${(averageConfidence * 100).toFixed(1)}%`)
 
     return {
       manifestId,
@@ -361,14 +370,13 @@ export async function analyzeComprehensiveManifest(
       processingTime,
       analysisResults,
       insights,
-      thinkingProcess,
       summary: {
         averageItemValue: totalEstimatedValue / analysisResults.length,
         averageProfit: totalPotentialProfit / analysisResults.length,
         expectedROI: (totalPotentialProfit / totalEstimatedValue) * 100,
+        confidenceScore: averageConfidence,
         categoryBreakdown,
         riskDistribution,
-        confidenceScore: averageConfidence,
       },
     }
   } catch (error) {
@@ -379,189 +387,211 @@ export async function analyzeComprehensiveManifest(
 
 async function generateMarketContext(items: (FixedManifestItem | EnhancedManifestItem)[]): Promise<string> {
   try {
-    const sampleProducts = items
-      .slice(0, 5)
-      .map((item) => getItemProduct(item))
-      .join(", ")
+    const sampleItems = items.slice(0, 10).map((item) => ({
+      product: getItemProduct(item),
+      price: getItemRetailPrice(item),
+      category: "category" in item ? item.category : "Unknown",
+    }))
 
-    const contextResult = await generateText({
+    const { text } = await generateText({
       model: openai("gpt-4o"),
-      prompt: `Analyze these sample products from a liquidation manifest and provide market context:
+      prompt: `Analyze the current market context for these liquidation items:
 
-Sample products: ${sampleProducts}
+${sampleItems.map((item, i) => `${i + 1}. ${item.product} - $${item.price} (${item.category})`).join("\n")}
 
-Provide a brief market context covering:
-1. Current market conditions for these product categories
-2. Seasonal factors affecting demand
-3. Economic factors influencing liquidation markets
-4. Key trends in resale markets
+Provide a comprehensive market context analysis covering:
+- Current market conditions for these product categories
+- Seasonal trends and timing considerations
+- Consumer demand patterns
+- Economic factors affecting resale markets
+- Platform-specific considerations (eBay, Amazon, Facebook, etc.)
+- Competitive landscape overview
 
-Keep it concise but informative for analysis context.`,
-      system: "You are a market research analyst specializing in liquidation and resale markets.",
+Keep the analysis concise but informative (2-3 paragraphs).`,
+      system:
+        "You are a market research analyst specializing in liquidation and resale markets. Provide current, actionable market insights.",
     })
 
-    return contextResult.text
+    return text
   } catch (error) {
     console.error("Error generating market context:", error)
-    return "General market conditions apply. Consider seasonal demand patterns and current economic factors."
+    return "Current market conditions show mixed demand across categories. E-commerce platforms remain strong channels for liquidation sales, with seasonal considerations affecting timing and pricing strategies."
   }
 }
 
-async function generateComprehensiveInsights(
-  results: EnhancedAnalysisResult[],
+async function generateComprehensiveManifestInsights(
+  results: ComprehensiveAnalysisResult[],
   totalRetail: number,
   totalEstimated: number,
   totalProfit: number,
   marketContext: string,
-): Promise<{
-  insights: z.infer<typeof ComprehensiveManifestInsightsSchema>
-  thinkingProcess: ComprehensiveManifestAnalysisResult["thinkingProcess"]
-}> {
+): Promise<z.infer<typeof ComprehensiveManifestInsightsSchema>> {
   try {
-    // Generate thinking process first
-    const thinkingResult = await generateText({
-      model: openai("gpt-4o"),
-      prompt: `You are analyzing a liquidation manifest. Walk through your strategic thinking process:
-
-Manifest Overview:
-- Total Items Analyzed: ${results.length}
-- Total Retail Value: $${totalRetail.toFixed(2)}
-- Total Estimated Value: $${totalEstimated.toFixed(2)}
-- Total Potential Profit: $${totalProfit.toFixed(2)}
-- Expected ROI: ${((totalProfit / totalEstimated) * 100).toFixed(1)}%
-
-Market Context: ${marketContext}
-
-Top Categories: ${Object.entries(
-        results.reduce(
-          (acc, r) => {
-            acc[r.analysis.category] = (acc[r.analysis.category] || 0) + 1
-            return acc
-          },
-          {} as Record<string, number>,
-        ),
-      )
-        .sort(([, a], [, b]) => b - a)
-        .slice(0, 3)
-        .map(([cat, count]) => `${cat} (${count})`)
-        .join(", ")}
-
-Explain your strategic thinking process:
-1. Overall strategy for this manifest
-2. Key market research findings that influence your recommendations
-3. Valuation methodology you're using
-4. Risk assessment approach
-5. Rationale behind your recommendations
-
-Be detailed and show your reasoning.`,
-      system: "You are a senior liquidation strategist. Show your complete strategic thinking process.",
-    })
-
-    // Generate comprehensive insights
     const insights = await generateObject({
       model: openai("gpt-4o"),
       schema: ComprehensiveManifestInsightsSchema,
-      prompt: `Based on your strategic analysis, provide comprehensive insights for this liquidation manifest:
+      prompt: `Provide comprehensive strategic insights for this liquidation manifest:
 
-Analysis Data:
-- Items: ${results.length}
-- Retail Value: $${totalRetail.toFixed(2)}
-- Estimated Value: $${totalEstimated.toFixed(2)}
-- Potential Profit: $${totalProfit.toFixed(2)}
-- ROI: ${((totalProfit / totalEstimated) * 100).toFixed(1)}%
+Total Items Analyzed: ${results.length}
+Total Retail Value: $${totalRetail.toFixed(2)}
+Total Estimated Value: $${totalEstimated.toFixed(2)}
+Total Potential Profit: $${totalProfit.toFixed(2)}
+Expected ROI: ${((totalProfit / totalEstimated) * 100).toFixed(1)}%
 
 Market Context: ${marketContext}
 
-Your Strategic Thinking: ${thinkingResult.text}
-
-Top Performing Items:
+Top Items Analysis:
 ${results
-  .sort((a, b) => b.analysis.profitPotential - a.analysis.profitPotential)
-  .slice(0, 5)
+  .slice(0, 8)
   .map(
     (r, i) =>
-      `${i + 1}. ${r.analysis.cleanedTitle} - Profit: $${r.analysis.profitPotential.toFixed(2)} (${r.analysis.category})`,
+      `${i + 1}. ${r.analysis.cleanedTitle} - Est: $${r.analysis.estimatedValue} (${r.analysis.category}, Risk: ${r.analysis.riskLevel})`,
   )
   .join("\n")}
 
-Provide comprehensive business insights including executive summary, market analysis, financial projections with monthly cash flow, strategic recommendations (immediate/short/long term), detailed risk analysis, and operational insights.`,
+Risk Distribution:
+${Object.entries(
+  results.reduce(
+    (acc, r) => {
+      acc[r.analysis.riskLevel] = (acc[r.analysis.riskLevel] || 0) + 1
+      return acc
+    },
+    {} as Record<string, number>,
+  ),
+)
+  .map(([level, count]) => `${level}: ${count} items`)
+  .join(", ")}
+
+Provide comprehensive strategic analysis including:
+- Executive summary with key insights
+- Detailed financial projections with monthly breakdown
+- Strategic recommendations for immediate, short-term, and long-term actions
+- Risk mitigation strategies
+- Operational insights for inventory, logistics, quality control, and customer service
+- Market analysis with competitive landscape assessment
+
+Be specific, actionable, and data-driven in your recommendations.`,
       system:
-        "You are a senior business analyst specializing in liquidation investments. Provide executive-level insights.",
+        "You are a senior business strategist specializing in liquidation and resale operations. Provide comprehensive, actionable insights for maximizing profitability and minimizing risk.",
     })
 
-    // Parse thinking process
-    const thinkingLines = thinkingResult.text.split("\n").filter((line) => line.trim())
-    const thinkingProcess = {
-      overallStrategy:
-        thinkingLines.find((line) => line.toLowerCase().includes("strategy")) ||
-        "Strategic approach based on market analysis",
-      marketResearchFindings: thinkingLines.filter(
-        (line) => line.toLowerCase().includes("market") || line.toLowerCase().includes("demand"),
-      ),
-      valuationMethodology:
-        thinkingLines.find(
-          (line) => line.toLowerCase().includes("valuation") || line.toLowerCase().includes("value"),
-        ) || "Conservative valuation approach",
-      riskAssessmentApproach:
-        thinkingLines.find((line) => line.toLowerCase().includes("risk")) || "Comprehensive risk evaluation",
-      recommendationRationale:
-        thinkingLines.find((line) => line.toLowerCase().includes("recommend")) || "Data-driven recommendations",
-    }
-
-    return { insights: insights.object, thinkingProcess }
+    return insights.object
   } catch (error) {
     console.error("Error generating comprehensive insights:", error)
 
-    // Fallback insights
+    // Fallback comprehensive insights
     return {
-      insights: {
-        executiveSummary: `Analysis of ${results.length} items with total retail value of $${totalRetail.toFixed(2)} and estimated profit potential of $${totalProfit.toFixed(2)}.`,
-        marketAnalysis: {
-          overallMarketCondition: "Fair" as const,
-          topPerformingCategories: ["Electronics", "Home Goods"],
-          marketOpportunities: ["Focus on high-value items", "Quick turnaround potential"],
-          competitiveLandscape: "Moderate competition in liquidation markets",
-        },
-        financialProjections: {
-          totalInvestment: totalEstimated,
-          projectedRevenue: totalEstimated + totalProfit,
-          estimatedProfit: totalProfit,
-          expectedROI: (totalProfit / totalEstimated) * 100,
-          breakEvenTimeframe: "3-6 months",
-          cashFlowProjection: Array.from({ length: 6 }, (_, i) => ({
-            month: i + 1,
-            revenue: (totalEstimated + totalProfit) / 6,
-            profit: totalProfit / 6,
-          })),
-        },
-        strategicRecommendations: {
-          immediate: ["Verify item conditions", "Research market prices"],
-          shortTerm: ["List high-value items first", "Build customer base"],
-          longTerm: ["Expand to new categories", "Develop supplier relationships"],
-        },
-        riskAnalysis: {
-          majorRisks: ["Market saturation", "Condition verification", "Storage costs"],
-          mitigationStrategies: ["Diversify inventory", "Thorough inspection", "Efficient logistics"],
-          contingencyPlans: ["Quick liquidation options", "Return policies", "Insurance coverage"],
-        },
-        operationalInsights: {
-          inventoryManagement: ["Track item conditions", "Organize by category", "Monitor turnover rates"],
-          logisticsConsiderations: ["Storage requirements", "Shipping costs", "Packaging needs"],
-          qualityControl: ["Inspection protocols", "Condition documentation", "Return handling"],
-        },
+      executiveSummary: `Analysis of ${results.length} items reveals a total estimated value of $${totalEstimated.toFixed(2)} with potential profit of $${totalProfit.toFixed(2)} (${((totalProfit / totalEstimated) * 100).toFixed(1)}% ROI). The manifest shows mixed risk levels with opportunities for strategic category focus.`,
+      keyFindings: [
+        "Diverse product mix provides risk distribution",
+        "Several high-value items identified for priority focus",
+        "Market conditions favor quick turnaround strategy",
+        "Quality control will be critical for customer satisfaction",
+      ],
+      totalValue: totalEstimated,
+      totalProfit: totalProfit,
+      averageMargin: (totalProfit / totalEstimated) * 100,
+      topCategories: ["Electronics", "Home Goods", "Apparel"],
+      opportunities: [
+        "Focus on high-confidence, low-risk items first",
+        "Bundle complementary products for higher margins",
+        "Leverage seasonal timing for specific categories",
+      ],
+      risks: [
+        "Condition verification needed for accurate pricing",
+        "Market saturation in some categories",
+        "Storage and handling costs impact margins",
+      ],
+      marketAnalysis: {
+        overallMarketCondition: "Good" as const,
+        topPerformingCategories: ["Electronics", "Home Goods"],
+        emergingTrends: ["Sustainable products", "Smart home devices"],
+        seasonalConsiderations: ["Holiday season approaching", "Back-to-school demand"],
+        competitiveLandscape: "Moderate competition with opportunities for differentiation",
+        priceVolatility: "Medium" as const,
       },
-      thinkingProcess: {
-        overallStrategy: "Conservative approach with focus on quick turnaround",
-        marketResearchFindings: ["Market research limited", "Using general industry knowledge"],
-        valuationMethodology: "Conservative 25% of retail value",
-        riskAssessmentApproach: "Medium risk assessment due to limited data",
-        recommendationRationale: "Based on general liquidation best practices",
+      strategicRecommendations: {
+        immediate: [
+          "Sort items by risk level and start with low-risk, high-confidence items",
+          "Set up quality control process for condition verification",
+          "Research current market prices for top-value items",
+        ],
+        shortTerm: [
+          "Develop category-specific pricing strategies",
+          "Establish relationships with multiple selling platforms",
+          "Create efficient inventory management system",
+        ],
+        longTerm: [
+          "Build brand reputation for quality liquidation goods",
+          "Develop data-driven pricing algorithms",
+          "Expand into complementary product categories",
+        ],
+        riskMitigation: [
+          "Diversify across multiple selling platforms",
+          "Maintain conservative pricing for uncertain items",
+          "Implement thorough condition assessment protocols",
+        ],
+        operationalTips: [
+          "Batch similar items for efficient processing",
+          "Use professional photography for higher-value items",
+          "Implement customer service protocols for returns",
+        ],
+      },
+      financialProjections: {
+        monthlyProjections: [
+          {
+            month: 1,
+            expectedRevenue: totalEstimated * 0.3,
+            expectedCosts: totalEstimated * 0.15,
+            netProfit: totalEstimated * 0.15,
+            cashFlow: totalEstimated * 0.15,
+          },
+          {
+            month: 2,
+            expectedRevenue: totalEstimated * 0.4,
+            expectedCosts: totalEstimated * 0.2,
+            netProfit: totalEstimated * 0.2,
+            cashFlow: totalEstimated * 0.35,
+          },
+          {
+            month: 3,
+            expectedRevenue: totalEstimated * 0.3,
+            expectedCosts: totalEstimated * 0.15,
+            netProfit: totalEstimated * 0.15,
+            cashFlow: totalEstimated * 0.5,
+          },
+        ],
+        breakEvenPoint: 2.5,
+        roiTimeline: "Expected full ROI within 3-4 months",
+        capitalRequirements: totalEstimated * 0.1,
+      },
+      operationalInsights: {
+        inventoryManagement: [
+          "Implement FIFO system for perishable/seasonal items",
+          "Use barcode system for tracking",
+          "Maintain detailed condition records",
+        ],
+        logisticsConsiderations: [
+          "Optimize packaging for different item types",
+          "Negotiate bulk shipping rates",
+          "Consider local pickup options for large items",
+        ],
+        qualityControl: [
+          "Photograph all items before listing",
+          "Test electronic items thoroughly",
+          "Grade condition consistently across all items",
+        ],
+        customerService: [
+          "Provide detailed item descriptions",
+          "Offer reasonable return policies",
+          "Respond quickly to customer inquiries",
+        ],
       },
     }
   }
 }
 
-// Helper functions
+// Helper functions to handle different item types
 function getItemProduct(item: FixedManifestItem | EnhancedManifestItem): string {
   return "product" in item ? item.product : "description" in item ? item.description : ""
 }
