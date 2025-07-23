@@ -4,101 +4,121 @@ export interface ValidationResult {
   isValid: boolean
   errors: string[]
   warnings: string[]
-  validItems: number
-  totalItems: number
-  totalValue: number
 }
 
-export async function validateManifestStructure(items: any[]): Promise<ValidationResult> {
+export interface ManifestItem {
+  brand: string
+  description: string
+  msrp: number
+  qty: number
+  condition?: string
+  category?: string
+}
+
+export function validateManifestStructure(items: ManifestItem[]): ValidationResult {
   const errors: string[] = []
   const warnings: string[] = []
-  let validItems = 0
-  let totalValue = 0
 
   if (!items || items.length === 0) {
     errors.push("No items found in manifest")
-    return {
-      isValid: false,
-      errors,
-      warnings,
-      validItems: 0,
-      totalItems: 0,
-      totalValue: 0,
-    }
+    return { isValid: false, errors, warnings }
   }
 
+  // Check each item
   items.forEach((item, index) => {
-    let itemValid = true
+    const rowNum = index + 1
 
-    // Check required fields
-    if (!item.product || typeof item.product !== "string" || !item.product.trim()) {
-      errors.push(`Row ${index + 1}: Missing or invalid product name`)
-      itemValid = false
+    // Required fields validation
+    if (!item.brand || item.brand.trim() === "") {
+      errors.push(`Row ${rowNum}: Missing brand`)
     }
 
-    if (!item.retailPrice || typeof item.retailPrice !== "number" || item.retailPrice <= 0) {
-      errors.push(`Row ${index + 1}: Missing or invalid retail price`)
-      itemValid = false
+    if (!item.description || item.description.trim() === "") {
+      errors.push(`Row ${rowNum}: Missing description`)
     }
 
-    if (!item.quantity || typeof item.quantity !== "number" || item.quantity <= 0) {
-      errors.push(`Row ${index + 1}: Missing or invalid quantity`)
-      itemValid = false
+    if (typeof item.msrp !== "number" || item.msrp <= 0) {
+      errors.push(`Row ${rowNum}: Invalid MSRP (${item.msrp})`)
     }
 
-    // Check optional fields and add warnings
-    if (!item.condition || typeof item.condition !== "string") {
-      warnings.push(`Row ${index + 1}: Missing condition information`)
+    if (typeof item.qty !== "number" || item.qty <= 0 || !Number.isInteger(item.qty)) {
+      errors.push(`Row ${rowNum}: Invalid quantity (${item.qty})`)
     }
 
-    if (itemValid) {
-      validItems++
-      totalValue += item.totalRetailPrice || item.retailPrice * item.quantity
+    // Warnings for data quality
+    if (item.msrp > 10000) {
+      warnings.push(`Row ${rowNum}: Unusually high MSRP ($${item.msrp})`)
+    }
+
+    if (item.qty > 100) {
+      warnings.push(`Row ${rowNum}: High quantity (${item.qty})`)
+    }
+
+    if (item.brand === "Unknown" || item.brand.toLowerCase().includes("generic")) {
+      warnings.push(`Row ${rowNum}: Unknown or generic brand`)
     }
   })
 
+  // Summary validations
+  const totalValue = items.reduce((sum, item) => sum + item.msrp * item.qty, 0)
+  if (totalValue === 0) {
+    errors.push("Total manifest value is zero")
+  }
+
+  const uniqueBrands = new Set(items.map((item) => item.brand)).size
+  if (uniqueBrands === 1) {
+    warnings.push("All items are from the same brand")
+  }
+
   return {
     isValid: errors.length === 0,
     errors,
     warnings,
-    validItems,
-    totalItems: items.length,
-    totalValue,
   }
 }
 
-export async function validateCSVStructure(headers: string[], rows: string[][]): Promise<ValidationResult> {
+export function validateCSVStructure(headers: string[]): ValidationResult {
   const errors: string[] = []
   const warnings: string[] = []
 
+  const requiredHeaders = ["brand", "description", "msrp", "qty"]
+  const normalizedHeaders = headers.map((h) => h.toLowerCase().trim())
+
   // Check for required headers
-  const requiredHeaders = ["product", "price", "quantity"]
-  const headerLower = headers.map((h) => h.toLowerCase())
+  for (const required of requiredHeaders) {
+    const found = normalizedHeaders.some(
+      (header) => header.includes(required) || (required === "qty" && (header.includes("quantity") || header === "q")),
+    )
 
-  const missingHeaders = requiredHeaders.filter((required) => !headerLower.some((header) => header.includes(required)))
-
-  if (missingHeaders.length > 0) {
-    errors.push(`Missing required headers: ${missingHeaders.join(", ")}`)
+    if (!found) {
+      errors.push(`Missing required column: ${required}`)
+    }
   }
 
-  // Check row consistency
-  const inconsistentRows = rows.filter((row) => row.length !== headers.length)
-  if (inconsistentRows.length > 0) {
-    warnings.push(`${inconsistentRows.length} rows have inconsistent column counts`)
-  }
+  // Check for duplicate headers
+  const duplicates = headers.filter((header, index) => headers.indexOf(header) !== index)
 
-  // Check for empty rows
-  const emptyRows = rows.filter((row) => row.every((cell) => !cell.trim()))
-  if (emptyRows.length > 0) {
-    warnings.push(`Found ${emptyRows.length} empty rows`)
+  if (duplicates.length > 0) {
+    warnings.push(`Duplicate headers found: ${duplicates.join(", ")}`)
   }
 
   return {
     isValid: errors.length === 0,
     errors,
     warnings,
-    validItems: rows.length - inconsistentRows.length - emptyRows.length,
-    totalItems: rows.length,
-    totalValue: 0, // Will be calculated during parsing
   }
+}
+
+export function sanitizeManifestData(items: ManifestItem[]): ManifestItem[] {
+  return items
+    .filter((item) => item.brand && item.description && item.msrp > 0 && item.qty > 0)
+    .map((item) => ({
+      ...item,
+      brand: item.brand.trim(),
+      description: item.description.trim(),
+      msrp: Math.round(item.msrp * 100) / 100, // Round to 2 decimal places
+      qty: Math.floor(item.qty), // Ensure integer
+      condition: item.condition?.trim() || "Unknown",
+      category: item.category?.trim() || "Other",
+    }))
 }

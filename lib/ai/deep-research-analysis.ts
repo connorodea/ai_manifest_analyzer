@@ -1,412 +1,426 @@
 "use server"
 
-import { generateText } from "ai"
+import { generateObject } from "ai"
 import { openai } from "@ai-sdk/openai"
-import type { FixedManifestItem } from "../utils/fixed-manifest-parser"
+import { z } from "zod"
+import { runManifestValuationAgent, type ManifestValuationInput } from "./manifest-valuation-agent"
 
-export interface DeepResearchItem {
-  id: string
-  originalItem: FixedManifestItem
-  cleanedTitle: string
-  brand?: string
-  category: string
-  upc?: string
-  marketResearch: {
-    amazonPrice?: number
-    ebayPrice?: number
-    walmartPrice?: number
-    averageMarketPrice: number
-    priceRange: { min: number; max: number }
-    demandLevel: "Low" | "Medium" | "High"
-    trendDirection: "Up" | "Down" | "Stable"
-    seasonality?: string
-  }
-  liquidationAnalysis: {
-    conservative: { price: number; timeToSell: number; probability: number }
-    realistic: { price: number; timeToSell: number; probability: number }
-    optimistic: { price: number; timeToSell: number; probability: number }
-    recommendedPrice: number
-    recommendedPlatform: string
-  }
-  riskAssessment: {
-    overallRisk: "Low" | "Medium" | "High" | "Critical"
-    riskFactors: string[]
-    mitigationStrategies: string[]
-    confidenceScore: number
-  }
-  profitAnalysis: {
-    grossProfit: number
-    netProfit: number
-    roi: number
-    breakEvenPrice: number
-    marginOfSafety: number
-  }
-  aiThinking: {
-    initialAssessment: string
-    marketResearchProcess: string
-    valuationMethodology: string
-    riskEvaluation: string
-    strategicRecommendations: string
-    finalConclusion: string
-  }
-}
+// Comprehensive analysis schemas
+const ExecutiveSummarySchema = z.object({
+  totalInvestment: z.number(),
+  expectedProfit: z.number(),
+  averageROI: z.number(),
+  confidenceScore: z.number().min(0).max(1),
+  marketCondition: z.enum(["Excellent", "Good", "Fair", "Poor"]),
+  keyHighlights: z.array(z.string()).max(6),
+  riskLevel: z.enum(["Low", "Medium", "High"]),
+  recommendedAction: z.enum(["Strong Buy", "Buy", "Hold", "Pass"]),
+})
 
-export interface ComprehensiveAnalysisResult {
-  manifestId: string
-  fileName: string
-  uploadDate: string
-  processingTime: number
-  totalItems: number
-  validItems: number
+const AIThinkingProcessSchema = z.object({
+  initialAssessment: z.object({
+    firstImpressions: z.string(),
+    categoryDistribution: z.string(),
+    brandRecognition: z.string(),
+    pricePointAnalysis: z.string(),
+  }),
+  marketResearchProcess: z.object({
+    researchStrategy: z.string(),
+    dataSourcesUsed: z.array(z.string()),
+    competitiveAnalysis: z.string(),
+    demandAssessment: z.string(),
+  }),
+  valuationMethodology: z.object({
+    approachUsed: z.string(),
+    factorsConsidered: z.array(z.string()),
+    adjustmentsApplied: z.string(),
+    confidenceRationale: z.string(),
+  }),
+  riskEvaluation: z.object({
+    identifiedRisks: z.array(z.string()),
+    riskWeighting: z.string(),
+    mitigationStrategies: z.array(z.string()),
+  }),
+  strategicRecommendations: z.object({
+    pricingStrategy: z.string(),
+    timingConsiderations: z.string(),
+    channelRecommendations: z.array(z.string()),
+    marketingApproach: z.string(),
+  }),
+  finalConclusion: z.object({
+    keyInsights: z.array(z.string()),
+    confidenceRating: z.number().min(0).max(1),
+    recommendedActions: z.array(z.string()),
+  }),
+})
 
-  executiveSummary: {
-    totalRetailValue: number
-    estimatedLiquidationValue: number
-    totalPotentialProfit: number
-    averageROI: number
-    riskDistribution: { low: number; medium: number; high: number; critical: number }
-    topCategories: Array<{ category: string; count: number; value: number }>
-    marketCondition: "Excellent" | "Good" | "Fair" | "Poor"
-    aiConfidence: number
-  }
+const MarketIntelligenceSchema = z.object({
+  overallMarketCondition: z.enum(["Excellent", "Good", "Fair", "Poor"]),
+  trendingCategories: z.array(
+    z.object({
+      category: z.string(),
+      trend: z.enum(["Rising", "Stable", "Declining"]),
+      confidence: z.number().min(0).max(1),
+    }),
+  ),
+  seasonalFactors: z.array(z.string()),
+  competitiveLandscape: z.string(),
+  priceVolatility: z.enum(["Low", "Medium", "High"]),
+})
 
-  items: DeepResearchItem[]
+const FinancialProjectionsSchema = z.object({
+  monthlyProjections: z.array(
+    z.object({
+      month: z.number(),
+      projectedSales: z.number(),
+      cumulativeProfit: z.number(),
+      inventoryRemaining: z.number(),
+    }),
+  ),
+  scenarioAnalysis: z.object({
+    conservative: z.object({ profit: z.number(), roi: z.number(), timeline: z.string() }),
+    realistic: z.object({ profit: z.number(), roi: z.number(), timeline: z.string() }),
+    optimistic: z.object({ profit: z.number(), roi: z.number(), timeline: z.string() }),
+  }),
+  breakEvenAnalysis: z.object({
+    breakEvenPoint: z.number(),
+    timeToBreakEven: z.string(),
+    marginOfSafety: z.number(),
+  }),
+})
 
-  portfolioInsights: {
-    categoryDistribution: Record<string, { count: number; value: number; avgROI: number }>
-    riskAnalysis: {
-      criticalRisks: string[]
-      opportunities: string[]
-      recommendations: string[]
-    }
-    financialProjections: {
-      monthly: { revenue: number; profit: number; roi: number }
-      quarterly: { revenue: number; profit: number; roi: number }
-      annual: { revenue: number; profit: number; roi: number }
-    }
-    strategicRecommendations: {
-      immediate: string[]
-      shortTerm: string[]
-      longTerm: string[]
-    }
-  }
+const StrategicRecommendationsSchema = z.object({
+  immediate: z.array(
+    z.object({
+      action: z.string(),
+      priority: z.enum(["Critical", "High", "Medium"]),
+      timeline: z.string(),
+      expectedImpact: z.string(),
+    }),
+  ),
+  shortTerm: z.array(
+    z.object({
+      action: z.string(),
+      priority: z.enum(["High", "Medium", "Low"]),
+      timeline: z.string(),
+      expectedImpact: z.string(),
+    }),
+  ),
+  longTerm: z.array(
+    z.object({
+      action: z.string(),
+      priority: z.enum(["High", "Medium", "Low"]),
+      timeline: z.string(),
+      expectedImpact: z.string(),
+    }),
+  ),
+})
 
-  aiAnalysisLog: {
-    totalThinkingTime: number
-    researchDepth: "Surface" | "Standard" | "Deep" | "Comprehensive"
-    dataSourcesUsed: string[]
-    confidenceMetrics: {
-      productIdentification: number
-      marketPricing: number
-      demandAssessment: number
-      riskEvaluation: number
-      overallConfidence: number
-    }
-  }
-}
+const RiskAssessmentSchema = z.object({
+  criticalRisks: z.array(
+    z.object({
+      risk: z.string(),
+      impact: z.enum(["High", "Medium", "Low"]),
+      probability: z.enum(["High", "Medium", "Low"]),
+      mitigation: z.string(),
+    }),
+  ),
+  operationalRisks: z.array(
+    z.object({
+      risk: z.string(),
+      impact: z.enum(["High", "Medium", "Low"]),
+      mitigation: z.string(),
+    }),
+  ),
+  marketRisks: z.array(
+    z.object({
+      risk: z.string(),
+      impact: z.enum(["High", "Medium", "Low"]),
+      mitigation: z.string(),
+    }),
+  ),
+})
 
-export async function performDeepResearchAnalysis(
-  items: FixedManifestItem[],
+const ComprehensiveAnalysisSchema = z.object({
+  manifestId: z.string(),
+  fileName: z.string(),
+  uploadDate: z.string(),
+  processingTime: z.number(),
+  validItems: z.number(),
+  totalRetailValue: z.number(),
+  manifestInsights: z.object({
+    executiveSummary: ExecutiveSummarySchema,
+    aiThinkingProcess: AIThinkingProcessSchema,
+    marketIntelligence: MarketIntelligenceSchema,
+    financialProjections: FinancialProjectionsSchema,
+    strategicRecommendations: StrategicRecommendationsSchema,
+    riskAssessment: RiskAssessmentSchema,
+  }),
+  valuationAgentResults: z.any(), // The raw output from the valuation agent
+})
+
+export type ComprehensiveAnalysisResult = z.infer<typeof ComprehensiveAnalysisSchema>
+
+export async function performComprehensiveAnalysis(
+  csvContent: string,
   fileName: string,
+  options: {
+    buyPctMsrp?: number
+    feePct?: number
+    shipPct?: number
+    scenarioSalePcts?: number[]
+  } = {},
 ): Promise<ComprehensiveAnalysisResult> {
   const startTime = Date.now()
-  console.log(`🔬 Starting deep research analysis for ${items.length} items...`)
+  console.log("🚀 Starting comprehensive manifest analysis...")
 
-  const manifestId = `deep_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-
-  // Analyze each item with deep research
-  const analyzedItems: DeepResearchItem[] = []
-
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i]
-    console.log(`🔍 Analyzing item ${i + 1}/${items.length}: ${item.product}`)
-
-    try {
-      const deepItem = await analyzeItemWithDeepResearch(item, i)
-      analyzedItems.push(deepItem)
-    } catch (error) {
-      console.error(`❌ Failed to analyze item ${i + 1}:`, error)
-      // Create a basic analysis for failed items
-      analyzedItems.push(createBasicAnalysis(item, i))
+  try {
+    // Step 1: Run the core valuation agent
+    const valuationInput: ManifestValuationInput = {
+      manifest_csv: csvContent,
+      buy_pct_msrp: options.buyPctMsrp || 0.1,
+      fee_pct: options.feePct || 0.12,
+      ship_pct: options.shipPct || 0.05,
+      scenario_sale_pcts: options.scenarioSalePcts || [0.25, 0.3, 0.35],
+      inbound_freight_est: 250,
+      min_units_for_brand: 3,
     }
+
+    console.log("🤖 Running valuation agent...")
+    const valuationResults = await runManifestValuationAgent(valuationInput)
+
+    // Step 2: Generate comprehensive insights using AI
+    console.log("🧠 Generating comprehensive insights...")
+    const manifestInsights = await generateComprehensiveInsights(valuationResults, csvContent)
+
+    const processingTime = Date.now() - startTime
+    const manifestId = `comprehensive_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+
+    console.log(`✅ Comprehensive analysis completed in ${processingTime}ms`)
+
+    return {
+      manifestId,
+      fileName,
+      uploadDate: new Date().toISOString(),
+      processingTime,
+      validItems: valuationResults.manifest_snapshot.total_unique_skus,
+      totalRetailValue: valuationResults.manifest_snapshot.aggregate_msrp,
+      manifestInsights,
+      valuationAgentResults: valuationResults,
+    }
+  } catch (error) {
+    console.error("❌ Comprehensive analysis failed:", error)
+    throw new Error(`Analysis failed: ${error instanceof Error ? error.message : "Unknown error"}`)
   }
+}
 
-  // Generate portfolio-level insights
-  const portfolioInsights = await generatePortfolioInsights(analyzedItems)
+async function generateComprehensiveInsights(valuationResults: any, csvContent: string) {
+  console.log("🔍 Generating executive summary...")
+  const executiveSummary = await generateExecutiveSummary(valuationResults)
 
-  // Calculate executive summary
-  const executiveSummary = calculateExecutiveSummary(analyzedItems)
+  console.log("🧠 Generating AI thinking process...")
+  const aiThinkingProcess = await generateAIThinkingProcess(valuationResults, csvContent)
 
-  const processingTime = Date.now() - startTime
+  console.log("📊 Generating market intelligence...")
+  const marketIntelligence = await generateMarketIntelligence(valuationResults)
 
-  const result: ComprehensiveAnalysisResult = {
-    manifestId,
-    fileName,
-    uploadDate: new Date().toISOString(),
-    processingTime,
-    totalItems: items.length,
-    validItems: analyzedItems.length,
+  console.log("💰 Generating financial projections...")
+  const financialProjections = await generateFinancialProjections(valuationResults)
+
+  console.log("🎯 Generating strategic recommendations...")
+  const strategicRecommendations = await generateStrategicRecommendations(valuationResults)
+
+  console.log("⚠️ Generating risk assessment...")
+  const riskAssessment = await generateRiskAssessment(valuationResults)
+
+  return {
     executiveSummary,
-    items: analyzedItems,
-    portfolioInsights,
-    aiAnalysisLog: {
-      totalThinkingTime: processingTime,
-      researchDepth: "Comprehensive",
-      dataSourcesUsed: ["Market Analysis", "Price Comparison", "Demand Assessment", "Risk Evaluation"],
-      confidenceMetrics: {
-        productIdentification: 0.92,
-        marketPricing: 0.88,
-        demandAssessment: 0.85,
-        riskEvaluation: 0.9,
-        overallConfidence: 0.89,
-      },
-    },
+    aiThinkingProcess,
+    marketIntelligence,
+    financialProjections,
+    strategicRecommendations,
+    riskAssessment,
   }
-
-  console.log(`✅ Deep research analysis completed in ${processingTime}ms`)
-  return result
 }
 
-async function analyzeItemWithDeepResearch(item: FixedManifestItem, index: number): Promise<DeepResearchItem> {
-  const { text: analysisText } = await generateText({
+async function generateExecutiveSummary(valuationResults: any) {
+  const result = await generateObject({
     model: openai("gpt-4o"),
-    system: `You are an expert liquidation analyst with deep market research capabilities. 
-    Analyze products for resale potential with comprehensive market research.
-    
-    Provide detailed analysis in the following JSON structure:
-    {
-      "cleanedTitle": "cleaned product title",
-      "brand": "brand name or null",
-      "category": "product category",
-      "upc": "UPC code if identifiable or null",
-      "marketResearch": {
-        "amazonPrice": estimated_amazon_price,
-        "ebayPrice": estimated_ebay_price,
-        "walmartPrice": estimated_walmart_price,
-        "averageMarketPrice": calculated_average,
-        "priceRange": {"min": min_price, "max": max_price},
-        "demandLevel": "Low|Medium|High",
-        "trendDirection": "Up|Down|Stable",
-        "seasonality": "seasonal info or null"
-      },
-      "liquidationAnalysis": {
-        "conservative": {"price": price, "timeToSell": days, "probability": 0.9},
-        "realistic": {"price": price, "timeToSell": days, "probability": 0.7},
-        "optimistic": {"price": price, "timeToSell": days, "probability": 0.4},
-        "recommendedPrice": recommended_price,
-        "recommendedPlatform": "best platform"
-      },
-      "riskAssessment": {
-        "overallRisk": "Low|Medium|High|Critical",
-        "riskFactors": ["factor1", "factor2"],
-        "mitigationStrategies": ["strategy1", "strategy2"],
-        "confidenceScore": 0.85
-      },
-      "profitAnalysis": {
-        "grossProfit": gross_profit,
-        "netProfit": net_profit,
-        "roi": roi_percentage,
-        "breakEvenPrice": break_even,
-        "marginOfSafety": margin_percentage
-      },
-      "aiThinking": {
-        "initialAssessment": "first thoughts on the product",
-        "marketResearchProcess": "how I researched market prices",
-        "valuationMethodology": "approach used for valuation",
-        "riskEvaluation": "risk assessment process",
-        "strategicRecommendations": "strategic advice",
-        "finalConclusion": "summary and confidence level"
-      }
-    }`,
-    prompt: `Analyze this liquidation item with deep market research:
+    schema: ExecutiveSummarySchema,
+    prompt: `Generate an executive summary for this liquidation manifest analysis:
 
-Product: ${item.product}
-Retail Price: $${item.retailPrice}
-Quantity: ${item.quantity}
-Condition: ${item.condition}
-Total Retail Value: $${item.totalRetailPrice}
+Manifest Overview:
+- Total SKUs: ${valuationResults.manifest_snapshot.total_unique_skus}
+- Total Units: ${valuationResults.manifest_snapshot.total_units}
+- Total MSRP: $${valuationResults.manifest_snapshot.aggregate_msrp}
+- Purchase Cost: $${valuationResults.manifest_snapshot.purchase_cost}
 
-Perform comprehensive analysis including:
-1. Clean and identify the product precisely
-2. Research current market prices across platforms
-3. Assess demand and market trends
-4. Calculate liquidation scenarios (conservative, realistic, optimistic)
-5. Evaluate risks and mitigation strategies
-6. Provide detailed profit analysis
-7. Show your complete thinking process
+Profit Scenarios:
+${valuationResults.profit_scenarios
+  .map(
+    (s: any) =>
+      `- ${(s.sale_pct_msrp * 100).toFixed(0)}% MSRP: $${s.net_profit} profit (${(s.roc * 100).toFixed(0)}% ROI)`,
+  )
+  .join("\n")}
 
-Be thorough and realistic in your analysis.`,
+Top Brands:
+${valuationResults.brand_market_comps
+  .slice(0, 5)
+  .map((b: any) => `- ${b.brand}: ${b.unit_count} units (${(b.resale_pct_msrp_est * 100).toFixed(0)}% resale est.)`)
+  .join("\n")}
+
+Agent Verdict: ${valuationResults.verdict}
+
+Provide a comprehensive executive summary with key metrics, market assessment, and strategic recommendations.`,
+    system: "You are a senior liquidation analyst providing executive-level insights for investment decisions.",
   })
 
-  try {
-    const analysis = JSON.parse(analysisText)
-
-    return {
-      id: `item_${index}_${Date.now()}`,
-      originalItem: item,
-      cleanedTitle: analysis.cleanedTitle,
-      brand: analysis.brand,
-      category: analysis.category,
-      upc: analysis.upc,
-      marketResearch: analysis.marketResearch,
-      liquidationAnalysis: analysis.liquidationAnalysis,
-      riskAssessment: analysis.riskAssessment,
-      profitAnalysis: analysis.profitAnalysis,
-      aiThinking: analysis.aiThinking,
-    }
-  } catch (error) {
-    console.error("Failed to parse AI analysis:", error)
-    return createBasicAnalysis(item, index)
-  }
+  return result.object
 }
 
-function createBasicAnalysis(item: FixedManifestItem, index: number): DeepResearchItem {
-  const estimatedPrice = item.retailPrice * 0.3 // 30% of retail as fallback
-
-  return {
-    id: `item_${index}_${Date.now()}`,
-    originalItem: item,
-    cleanedTitle: item.product,
-    category: "Unknown",
-    marketResearch: {
-      averageMarketPrice: item.retailPrice * 0.8,
-      priceRange: { min: item.retailPrice * 0.2, max: item.retailPrice * 1.2 },
-      demandLevel: "Medium",
-      trendDirection: "Stable",
-    },
-    liquidationAnalysis: {
-      conservative: { price: estimatedPrice * 0.8, timeToSell: 60, probability: 0.9 },
-      realistic: { price: estimatedPrice, timeToSell: 30, probability: 0.7 },
-      optimistic: { price: estimatedPrice * 1.5, timeToSell: 14, probability: 0.4 },
-      recommendedPrice: estimatedPrice,
-      recommendedPlatform: "eBay",
-    },
-    riskAssessment: {
-      overallRisk: "Medium",
-      riskFactors: ["Limited market data"],
-      mitigationStrategies: ["Price competitively"],
-      confidenceScore: 0.5,
-    },
-    profitAnalysis: {
-      grossProfit: estimatedPrice - item.retailPrice * 0.1,
-      netProfit: estimatedPrice - item.retailPrice * 0.15,
-      roi: ((estimatedPrice - item.retailPrice * 0.15) / (item.retailPrice * 0.15)) * 100,
-      breakEvenPrice: item.retailPrice * 0.15,
-      marginOfSafety: 0.2,
-    },
-    aiThinking: {
-      initialAssessment: "Basic analysis due to processing error",
-      marketResearchProcess: "Fallback estimation used",
-      valuationMethodology: "Conservative 30% of retail",
-      riskEvaluation: "Medium risk due to limited data",
-      strategicRecommendations: "Price competitively and monitor market",
-      finalConclusion: "Requires manual review",
-    },
-  }
-}
-
-async function generatePortfolioInsights(items: DeepResearchItem[]) {
-  const { text: insightsText } = await generateText({
+async function generateAIThinkingProcess(valuationResults: any, csvContent: string) {
+  const result = await generateObject({
     model: openai("gpt-4o"),
-    system: `You are a portfolio analyst specializing in liquidation investments. 
-    Analyze the complete portfolio and provide strategic insights.`,
-    prompt: `Analyze this liquidation portfolio of ${items.length} items and provide strategic insights:
+    schema: AIThinkingProcessSchema,
+    prompt: `Provide a detailed AI thinking process for analyzing this liquidation manifest:
 
-${items.map((item) => `- ${item.cleanedTitle}: $${item.originalItem.retailPrice} retail, ${item.riskAssessment.overallRisk} risk, ${item.profitAnalysis.roi.toFixed(1)}% ROI`).join("\n")}
+Raw Data Preview:
+${csvContent.split("\n").slice(0, 10).join("\n")}
 
-Provide analysis in JSON format:
-{
-  "categoryDistribution": {"category": {"count": number, "value": number, "avgROI": number}},
-  "riskAnalysis": {
-    "criticalRisks": ["risk1", "risk2"],
-    "opportunities": ["opp1", "opp2"],
-    "recommendations": ["rec1", "rec2"]
-  },
-  "financialProjections": {
-    "monthly": {"revenue": number, "profit": number, "roi": number},
-    "quarterly": {"revenue": number, "profit": number, "roi": number},
-    "annual": {"revenue": number, "profit": number, "roi": number}
-  },
-  "strategicRecommendations": {
-    "immediate": ["action1", "action2"],
-    "shortTerm": ["action1", "action2"],
-    "longTerm": ["action1", "action2"]
-  }
-}`,
+Analysis Results:
+- Verdict: ${valuationResults.verdict}
+- ROI Range: ${Math.min(...valuationResults.profit_scenarios.map((s: any) => s.roc * 100)).toFixed(0)}% - ${Math.max(...valuationResults.profit_scenarios.map((s: any) => s.roc * 100)).toFixed(0)}%
+- Brand Count: ${valuationResults.brand_market_comps.length}
+
+Show the complete thought process from initial assessment through final recommendations, including:
+1. First impressions and categorization
+2. Market research methodology
+3. Valuation approach and confidence factors
+4. Risk identification and weighting
+5. Strategic recommendations development
+6. Final conclusions and action items
+
+Be transparent about reasoning, assumptions, and confidence levels.`,
+    system:
+      "You are an AI system explaining your analytical thought process in detail for transparency and educational purposes.",
   })
 
-  try {
-    return JSON.parse(insightsText)
-  } catch (error) {
-    console.error("Failed to parse portfolio insights:", error)
-    return {
-      categoryDistribution: {},
-      riskAnalysis: {
-        criticalRisks: ["Analysis parsing error"],
-        opportunities: ["Manual review recommended"],
-        recommendations: ["Verify data accuracy"],
-      },
-      financialProjections: {
-        monthly: { revenue: 0, profit: 0, roi: 0 },
-        quarterly: { revenue: 0, profit: 0, roi: 0 },
-        annual: { revenue: 0, profit: 0, roi: 0 },
-      },
-      strategicRecommendations: {
-        immediate: ["Review analysis results"],
-        shortTerm: ["Implement data validation"],
-        longTerm: ["Optimize analysis pipeline"],
-      },
-    }
-  }
+  return result.object
 }
 
-function calculateExecutiveSummary(items: DeepResearchItem[]) {
-  const totalRetailValue = items.reduce((sum, item) => sum + item.originalItem.totalRetailPrice, 0)
-  const estimatedLiquidationValue = items.reduce((sum, item) => sum + item.liquidationAnalysis.recommendedPrice, 0)
-  const totalPotentialProfit = items.reduce((sum, item) => sum + item.profitAnalysis.netProfit, 0)
-  const averageROI = items.reduce((sum, item) => sum + item.profitAnalysis.roi, 0) / items.length
+async function generateMarketIntelligence(valuationResults: any) {
+  const result = await generateObject({
+    model: openai("gpt-4o"),
+    schema: MarketIntelligenceSchema,
+    prompt: `Analyze current market conditions for this liquidation manifest:
 
-  const riskDistribution = items.reduce(
-    (acc, item) => {
-      const risk = item.riskAssessment.overallRisk.toLowerCase()
-      acc[risk] = (acc[risk] || 0) + 1
-      return acc
-    },
-    {} as Record<string, number>,
+Brand Portfolio:
+${valuationResults.brand_market_comps
+  .map((b: any) => `- ${b.brand}: ${b.unit_count} units, ${(b.resale_pct_msrp_est * 100).toFixed(0)}% resale potential`)
+  .join("\n")}
+
+Operational Notes:
+${valuationResults.operational_notes.join("\n")}
+
+Provide comprehensive market intelligence including:
+- Overall market condition assessment
+- Category trends and opportunities
+- Seasonal factors affecting sales
+- Competitive landscape analysis
+- Price volatility assessment
+
+Focus on actionable market insights for liquidation success.`,
+    system: "You are a market intelligence analyst specializing in secondary markets and liquidation channels.",
+  })
+
+  return result.object
+}
+
+async function generateFinancialProjections(valuationResults: any) {
+  const result = await generateObject({
+    model: openai("gpt-4o"),
+    schema: FinancialProjectionsSchema,
+    prompt: `Create detailed financial projections for this liquidation manifest:
+
+Investment: $${valuationResults.manifest_snapshot.purchase_cost}
+Total Inventory Value: $${valuationResults.manifest_snapshot.aggregate_msrp}
+
+Profit Scenarios:
+${valuationResults.profit_scenarios
+  .map(
+    (s: any) =>
+      `- ${(s.sale_pct_msrp * 100).toFixed(0)}% MSRP: $${s.net_profit} profit (${(s.roc * 100).toFixed(0)}% ROI)`,
   )
+  .join("\n")}
 
-  const categoryMap = items.reduce(
-    (acc, item) => {
-      const cat = item.category
-      if (!acc[cat]) acc[cat] = { count: 0, value: 0 }
-      acc[cat].count++
-      acc[cat].value += item.originalItem.totalRetailPrice
-      return acc
-    },
-    {} as Record<string, { count: number; value: number }>,
-  )
+Generate:
+1. Monthly sales projections (12 months)
+2. Conservative/Realistic/Optimistic scenarios
+3. Break-even analysis with timeline
+4. Cash flow considerations
 
-  const topCategories = Object.entries(categoryMap)
-    .sort(([, a], [, b]) => b.value - a.value)
-    .slice(0, 5)
-    .map(([category, data]) => ({ category, count: data.count, value: data.value }))
+Base projections on typical liquidation sell-through rates and market conditions.`,
+    system: "You are a financial analyst specializing in liquidation investment modeling and cash flow projections.",
+  })
 
-  const avgConfidence = items.reduce((sum, item) => sum + item.riskAssessment.confidenceScore, 0) / items.length
+  return result.object
+}
 
-  return {
-    totalRetailValue,
-    estimatedLiquidationValue,
-    totalPotentialProfit,
-    averageROI,
-    riskDistribution: {
-      low: riskDistribution.low || 0,
-      medium: riskDistribution.medium || 0,
-      high: riskDistribution.high || 0,
-      critical: riskDistribution.critical || 0,
-    },
-    topCategories,
-    marketCondition:
-      averageROI > 50 ? "Excellent" : averageROI > 25 ? "Good" : averageROI > 10 ? "Fair" : ("Poor" as const),
-    aiConfidence: avgConfidence,
-  }
+async function generateStrategicRecommendations(valuationResults: any) {
+  const result = await generateObject({
+    model: openai("gpt-4o"),
+    schema: StrategicRecommendationsSchema,
+    prompt: `Develop strategic recommendations for this liquidation manifest:
+
+Verdict: ${valuationResults.verdict}
+ROI Range: ${Math.min(...valuationResults.profit_scenarios.map((s: any) => s.roc * 100)).toFixed(0)}% - ${Math.max(...valuationResults.profit_scenarios.map((s: any) => s.roc * 100)).toFixed(0)}%
+
+Top Brands:
+${valuationResults.brand_market_comps
+  .slice(0, 5)
+  .map((b: any) => `- ${b.brand}: ${b.unit_count} units`)
+  .join("\n")}
+
+Operational Considerations:
+${valuationResults.operational_notes.join("\n")}
+
+Provide actionable recommendations in three timeframes:
+1. Immediate (0-30 days): Critical actions for acquisition/setup
+2. Short-term (1-6 months): Operational and sales execution
+3. Long-term (6+ months): Portfolio optimization and scaling
+
+Prioritize by impact and feasibility.`,
+    system: "You are a liquidation strategy consultant providing actionable recommendations for profit maximization.",
+  })
+
+  return result.object
+}
+
+async function generateRiskAssessment(valuationResults: any) {
+  const result = await generateObject({
+    model: openai("gpt-4o"),
+    schema: RiskAssessmentSchema,
+    prompt: `Conduct comprehensive risk assessment for this liquidation manifest:
+
+Investment: $${valuationResults.manifest_snapshot.purchase_cost}
+Expected ROI: ${Math.min(...valuationResults.profit_scenarios.map((s: any) => s.roc * 100)).toFixed(0)}% - ${Math.max(...valuationResults.profit_scenarios.map((s: any) => s.roc * 100)).toFixed(0)}%
+
+Brand Mix:
+${valuationResults.brand_market_comps
+  .map((b: any) => `- ${b.brand}: ${b.unit_count} units (${(b.resale_pct_msrp_est * 100).toFixed(0)}% est. resale)`)
+  .join("\n")}
+
+Operational Notes:
+${valuationResults.operational_notes.join("\n")}
+
+Identify and assess:
+1. Critical risks that could significantly impact profitability
+2. Operational risks in handling, storage, and fulfillment
+3. Market risks including demand, competition, and pricing
+
+For each risk, provide impact level, probability, and specific mitigation strategies.`,
+    system: "You are a risk management specialist focusing on liquidation and resale business risks.",
+  })
+
+  return result.object
 }

@@ -1,159 +1,143 @@
 "use server"
 
-import { parseFixedManifestCSV, validateManifestStructure } from "../utils/fixed-manifest-parser"
-import { analyzeSimpleManifest, type SimpleManifestAnalysisResult } from "../ai/simple-analysis-service"
+import { revalidatePath } from "next/cache"
 
-// In-memory storage for demo - in production, use a database
-const fixedManifestStorage = new Map<string, SimpleManifestAnalysisResult>()
+// Mock data for demonstration
+const mockManifests = [
+  {
+    id: "manifest-1",
+    name: "Electronics Liquidation Lot #001",
+    uploadDate: "2024-01-15",
+    itemCount: 150,
+    totalValue: 45000,
+    status: "analyzed",
+  },
+  {
+    id: "manifest-2",
+    name: "Retail Returns - Mixed Categories",
+    uploadDate: "2024-01-14",
+    itemCount: 89,
+    totalValue: 12500,
+    status: "processing",
+  },
+  {
+    id: "manifest-3",
+    name: "Amazon Returns Pallet #A123",
+    uploadDate: "2024-01-13",
+    itemCount: 200,
+    totalValue: 67800,
+    status: "analyzed",
+  },
+]
 
-export async function uploadManifestFixed(formData: FormData) {
-  console.log("🚀 Starting fixed manifest upload...")
+export async function getFixedManifestSummary() {
+  // Simulate API delay
+  await new Promise((resolve) => setTimeout(resolve, 100))
 
-  try {
-    const file = formData.get("file") as File
-    if (!file) {
-      throw new Error("No file provided")
-    }
-
-    console.log(`📁 Processing file: ${file.name} (${file.size} bytes)`)
-
-    // Read file content
-    const content = await file.text()
-    console.log(`📄 File content length: ${content.length} characters`)
-
-    // Parse manifest
-    console.log("🔍 Parsing fixed manifest...")
-    const items = await parseFixedManifestCSV(content)
-    console.log(`✅ Parsed ${items.length} items`)
-
-    // Validate structure
-    console.log("✅ Validating manifest structure...")
-    const validation = validateManifestStructure(items)
-
-    if (!validation.isValid) {
-      throw new Error(`Manifest validation failed: ${validation.issues.join(", ")}`)
-    }
-
-    console.log(`✅ Validation passed: ${validation.itemCount} items valid`)
-
-    // Perform AI analysis
-    console.log("🤖 Starting AI analysis...")
-    const analysisResult = await analyzeSimpleManifest(items, file.name)
-    console.log("✅ AI analysis completed")
-
-    // Store result
-    fixedManifestStorage.set(analysisResult.manifestId, analysisResult)
-    console.log(`💾 Stored fixed manifest: ${analysisResult.manifestId}`)
-
-    return {
-      success: true,
-      manifestId: analysisResult.manifestId,
-      result: analysisResult,
-    }
-  } catch (error) {
-    console.error("❌ Fixed manifest upload failed:", error)
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error occurred",
-    }
+  return {
+    totalManifests: mockManifests.length,
+    totalItems: mockManifests.reduce((sum, manifest) => sum + manifest.itemCount, 0),
+    totalValue: mockManifests.reduce((sum, manifest) => sum + manifest.totalValue, 0),
+    recentManifests: mockManifests.slice(0, 3),
+    analysisComplete: mockManifests.filter((m) => m.status === "analyzed").length,
+    processingCount: mockManifests.filter((m) => m.status === "processing").length,
   }
 }
 
 export async function uploadFixedManifest(formData: FormData) {
-  return uploadManifestFixed(formData)
-}
-
-export async function getFixedManifestItems(id: string) {
   try {
-    const manifest = fixedManifestStorage.get(id)
-    if (!manifest) {
-      throw new Error(`Fixed manifest not found: ${id}`)
-    }
-    return manifest.items || []
-  } catch (error) {
-    console.error("❌ Error getting fixed manifest items:", error)
-    return []
-  }
-}
-
-export async function getFixedManifestAnalysis(id: string) {
-  try {
-    const manifest = fixedManifestStorage.get(id)
-    if (!manifest) {
-      throw new Error(`Fixed manifest not found: ${id}`)
-    }
-    return manifest
-  } catch (error) {
-    console.error("❌ Error getting fixed manifest analysis:", error)
-    throw error
-  }
-}
-
-export async function getFixedManifestById(id: string): Promise<SimpleManifestAnalysisResult> {
-  try {
-    const manifest = fixedManifestStorage.get(id)
-    if (!manifest) {
-      throw new Error(`Fixed manifest not found: ${id}`)
-    }
-    return manifest
-  } catch (error) {
-    console.error("❌ Error getting fixed manifest:", error)
-    throw error
-  }
-}
-
-export async function getAllFixedManifests(userId: string): Promise<SimpleManifestAnalysisResult[]> {
-  try {
-    // In production, filter by userId
-    const manifests = Array.from(fixedManifestStorage.values())
-    console.log(`📋 Retrieved ${manifests.length} fixed manifests for user ${userId}`)
-    return manifests
-  } catch (error) {
-    console.error("❌ Error getting fixed manifests:", error)
-    return []
-  }
-}
-
-export async function deleteFixedManifest(manifestId: string) {
-  try {
-    const deleted = fixedManifestStorage.delete(manifestId)
-    if (deleted) {
-      console.log(`🗑️ Deleted fixed manifest: ${manifestId}`)
-      return { success: true }
-    } else {
-      throw new Error(`Fixed manifest not found: ${manifestId}`)
-    }
-  } catch (error) {
-    console.error("❌ Error deleting fixed manifest:", error)
-    return { success: false, error: error instanceof Error ? error.message : "Unknown error" }
-  }
-}
-
-export async function getFixedManifestSummary(userId: string) {
-  try {
-    const manifests = await getAllFixedManifests(userId)
-
-    const summary = {
-      totalManifests: manifests.length,
-      totalItems: manifests.reduce((sum, m) => sum + m.totalItems, 0),
-      totalValue: manifests.reduce((sum, m) => sum + m.totalRetailValue, 0),
-      totalProfit: manifests.reduce((sum, m) => sum + m.totalPotentialProfit, 0),
-      averageROI: 0,
+    const file = formData.get("file") as File
+    if (!file) {
+      return { success: false, error: "No file provided" }
     }
 
-    if (summary.totalValue > 0) {
-      summary.averageROI = (summary.totalProfit / summary.totalValue) * 100
+    // Simulate file processing
+    await new Promise((resolve) => setTimeout(resolve, 2000))
+
+    // Mock successful upload
+    const newManifest = {
+      id: `manifest-${Date.now()}`,
+      name: file.name.replace(".csv", ""),
+      uploadDate: new Date().toISOString().split("T")[0],
+      itemCount: Math.floor(Math.random() * 200) + 50,
+      totalValue: Math.floor(Math.random() * 50000) + 10000,
+      status: "processing",
     }
 
-    return summary
-  } catch (error) {
-    console.error("❌ Error getting fixed manifest summary:", error)
+    mockManifests.unshift(newManifest)
+    revalidatePath("/dashboard")
+
     return {
-      totalManifests: 0,
-      totalItems: 0,
-      totalValue: 0,
-      totalProfit: 0,
-      averageROI: 0,
+      success: true,
+      manifestId: newManifest.id,
+      message: "Manifest uploaded successfully",
     }
+  } catch (error) {
+    console.error("Upload error:", error)
+    return {
+      success: false,
+      error: "Failed to upload manifest",
+    }
+  }
+}
+
+export async function getFixedManifestById(id: string) {
+  const manifest = mockManifests.find((m) => m.id === id)
+  if (!manifest) {
+    return null
+  }
+
+  return {
+    ...manifest,
+    items: [
+      {
+        id: "item-1",
+        description: "Apple iPhone 14 Pro 128GB Space Black",
+        brand: "Apple",
+        condition: "Like New",
+        quantity: 1,
+        retailPrice: 999.0,
+        estimatedValue: 750.0,
+        category: "Electronics",
+      },
+      {
+        id: "item-2",
+        description: 'Samsung 55" QLED 4K Smart TV',
+        brand: "Samsung",
+        condition: "New",
+        quantity: 2,
+        retailPrice: 1299.99,
+        estimatedValue: 950.0,
+        category: "Electronics",
+      },
+      {
+        id: "item-3",
+        description: "Nike Air Max 270 Running Shoes Size 10",
+        brand: "Nike",
+        condition: "Very Good",
+        quantity: 1,
+        retailPrice: 150.0,
+        estimatedValue: 85.0,
+        category: "Footwear",
+      },
+    ],
+    analysis: {
+      categoryBreakdown: {
+        Electronics: 75,
+        Footwear: 15,
+        Accessories: 10,
+      },
+      conditionBreakdown: {
+        New: 40,
+        "Like New": 35,
+        "Very Good": 20,
+        Good: 5,
+      },
+      insights: [
+        "High-value electronics dominate this manifest",
+        "Excellent condition distribution with 75% in top conditions",
+        "Strong resale potential with average 65% of retail value",
+      ],
+    },
   }
 }

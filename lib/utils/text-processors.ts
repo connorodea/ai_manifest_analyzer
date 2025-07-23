@@ -1,336 +1,126 @@
 "use server"
 
-export async function cleanDescription(description: string): Promise<string> {
+export function cleanDescription(description: string): string {
   if (!description) return ""
 
   // Remove extra whitespace and normalize
   let cleaned = description.trim().replace(/\s+/g, " ")
 
   // Remove common prefixes/suffixes that don't add value
-  const prefixesToRemove = [
-    /^lot of\s+/i,
-    /^case of\s+/i,
-    /^box of\s+/i,
-    /^pallet of\s+/i,
-    /^mixed\s+/i,
-    /^assorted\s+/i,
-  ]
+  const prefixesToRemove = ["NEW ", "BRAND NEW ", "FACTORY SEALED ", "NIB ", "BNIB "]
 
-  const suffixesToRemove = [/\s+- mixed$/i, /\s+- assorted$/i, /\s+lot$/i, /\s+case$/i]
+  const suffixesToRemove = [" - NEW", " - BRAND NEW", " (NEW)", " [NEW]"]
 
+  // Remove prefixes
   for (const prefix of prefixesToRemove) {
-    cleaned = cleaned.replace(prefix, "")
+    if (cleaned.toUpperCase().startsWith(prefix)) {
+      cleaned = cleaned.substring(prefix.length).trim()
+    }
   }
 
+  // Remove suffixes
   for (const suffix of suffixesToRemove) {
-    cleaned = cleaned.replace(suffix, "")
+    if (cleaned.toUpperCase().endsWith(suffix)) {
+      cleaned = cleaned.substring(0, cleaned.length - suffix.length).trim()
+    }
   }
 
-  // Capitalize first letter
-  cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1)
+  // Clean up special characters but preserve important ones
+  cleaned = cleaned
+    .replace(/[^\w\s\-.$$$$[\]/&]/g, " ") // Keep basic punctuation
+    .replace(/\s+/g, " ") // Normalize whitespace again
+    .trim()
 
-  return cleaned.trim()
+  return cleaned
 }
 
-export async function cleanProductDescription(description: string): Promise<string> {
-  return cleanDescription(description)
-}
-
-export async function extractKeywords(text: string): Promise<string[]> {
-  if (!text) return []
-
-  // Convert to lowercase and split into words
-  const words = text
-    .toLowerCase()
-    .replace(/[^\w\s]/g, " ")
-    .split(/\s+/)
-    .filter((word) => word.length > 2)
-
-  // Remove common stop words
-  const stopWords = new Set([
-    "the",
-    "and",
-    "or",
-    "but",
-    "in",
-    "on",
-    "at",
-    "to",
-    "for",
-    "of",
-    "with",
-    "by",
-    "from",
-    "up",
-    "about",
-    "into",
-    "through",
-    "during",
-    "before",
-    "after",
-    "above",
-    "below",
-    "between",
-    "among",
-    "this",
-    "that",
-    "these",
-    "those",
-    "is",
-    "are",
-    "was",
-    "were",
-    "be",
-    "been",
-    "being",
-    "have",
-    "has",
-    "had",
-    "do",
-    "does",
-    "did",
-    "will",
-    "would",
-    "could",
-    "should",
-    "may",
-    "might",
-    "must",
-    "can",
-    "shall",
-    "lot",
-    "case",
-    "box",
-    "pallet",
-  ])
-
-  const keywords = words.filter((word) => !stopWords.has(word))
-
-  // Remove duplicates and return
-  return [...new Set(keywords)]
-}
-
-export async function normalizeCondition(condition: string): Promise<string> {
-  if (!condition) return "Unknown"
-
-  const normalized = condition.toLowerCase().trim()
-
-  // Map variations to standard conditions
-  const conditionMap: Record<string, string> = {
-    new: "New",
-    "brand new": "New",
-    "new in box": "New",
-    nib: "New",
-    sealed: "New",
-
-    used: "Used",
-    "pre-owned": "Used",
-    preowned: "Used",
-    "second hand": "Used",
-    secondhand: "Used",
-
-    refurbished: "Refurbished",
-    refurb: "Refurbished",
-    renewed: "Refurbished",
-    restored: "Refurbished",
-
-    "open box": "Open Box",
-    openbox: "Open Box",
-    "open package": "Open Box",
-
-    damaged: "Damaged",
-    broken: "Damaged",
-    defective: "Damaged",
-    faulty: "Damaged",
-
-    excellent: "Excellent",
-    "like new": "Excellent",
-    mint: "Excellent",
-
-    good: "Good",
-    fine: "Good",
-    decent: "Good",
-
-    fair: "Fair",
-    okay: "Fair",
-    ok: "Fair",
-
-    poor: "Poor",
-    bad: "Poor",
-    terrible: "Poor",
-  }
-
-  return conditionMap[normalized] || "Unknown"
-}
-
-export async function extractBrandFromDescription(description: string): Promise<string | null> {
-  if (!description) return null
+export function extractBrand(description: string): string {
+  if (!description) return "Unknown"
 
   // Common brand patterns
   const brandPatterns = [
     // Electronics
-    /\b(apple|samsung|sony|lg|microsoft|google|amazon|dell|hp|lenovo|asus|acer|canon|nikon|panasonic|philips|bose|beats|jbl)\b/i,
-    // Clothing
-    /\b(nike|adidas|puma|under armour|levi's|gap|old navy|target|walmart|costco)\b/i,
-    // Home goods
-    /\b(ikea|pottery barn|crate and barrel|williams sonoma|bed bath beyond|target|walmart)\b/i,
-    // General retail
-    /\b(amazon basics|kirkland|great value|up&up|simply balanced|good & gather)\b/i,
+    /\b(Apple|Samsung|Sony|LG|Panasonic|Canon|Nikon|HP|Dell|Lenovo|ASUS|Acer)\b/i,
+    // Home & Garden
+    /\b(Kohler|Moen|Delta|American Standard|Pfister|Grohe|Hansgrohe)\b/i,
+    // Tools
+    /\b(DeWalt|Milwaukee|Makita|Bosch|Ryobi|Black\+?Decker|Craftsman|Stanley)\b/i,
+    // Appliances
+    /\b(KitchenAid|Cuisinart|Hamilton Beach|Ninja|Instant Pot|Dyson|Shark)\b/i,
+    // Fashion
+    /\b(Nike|Adidas|Under Armour|Levi'?s|Calvin Klein|Tommy Hilfiger)\b/i,
+    // Generic pattern for brand at start
+    /^([A-Z][a-zA-Z]+)\s/,
   ]
 
   for (const pattern of brandPatterns) {
     const match = description.match(pattern)
     if (match) {
-      return match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase()
+      return match[1] || match[0]
     }
   }
 
-  return null
+  // Fallback: try to extract first capitalized word
+  const words = description.split(/\s+/)
+  const firstCapitalized = words.find(
+    (word) => word.length > 2 && word[0] === word[0].toUpperCase() && !/^\d/.test(word), // Not starting with number
+  )
+
+  return firstCapitalized || "Unknown"
 }
 
-export async function categorizeProduct(description: string): Promise<string> {
-  if (!description) return "Other"
+export function normalizeCondition(condition: string): string {
+  if (!condition) return "Unknown"
 
-  const lowerDesc = description.toLowerCase()
+  const normalized = condition.toLowerCase().trim()
 
-  // Category keywords
-  const categories = {
-    Electronics: [
-      "phone",
-      "smartphone",
-      "iphone",
-      "android",
-      "tablet",
-      "ipad",
-      "laptop",
-      "computer",
-      "desktop",
-      "monitor",
-      "tv",
-      "television",
-      "headphones",
-      "earbuds",
-      "speaker",
-      "bluetooth",
-      "camera",
-      "gaming",
-      "console",
-      "xbox",
-      "playstation",
-      "nintendo",
-    ],
-    Clothing: [
-      "shirt",
-      "t-shirt",
-      "pants",
-      "jeans",
-      "dress",
-      "skirt",
-      "jacket",
-      "coat",
-      "sweater",
-      "hoodie",
-      "shoes",
-      "sneakers",
-      "boots",
-      "hat",
-      "cap",
-      "socks",
-      "underwear",
-      "bra",
-      "swimwear",
-    ],
-    "Home & Garden": [
-      "furniture",
-      "chair",
-      "table",
-      "desk",
-      "bed",
-      "mattress",
-      "sofa",
-      "couch",
-      "lamp",
-      "lighting",
-      "kitchen",
-      "cookware",
-      "dishes",
-      "bedding",
-      "towels",
-      "curtains",
-      "rug",
-      "carpet",
-      "garden",
-      "tools",
-      "hardware",
-    ],
-    "Toys & Games": [
-      "toy",
-      "doll",
-      "action figure",
-      "lego",
-      "puzzle",
-      "board game",
-      "video game",
-      "educational",
-      "kids",
-      "children",
-      "baby",
-      "stroller",
-      "car seat",
-    ],
-    "Sports & Outdoors": [
-      "fitness",
-      "exercise",
-      "gym",
-      "weights",
-      "treadmill",
-      "bike",
-      "bicycle",
-      "outdoor",
-      "camping",
-      "hiking",
-      "sports",
-      "ball",
-      "equipment",
-      "athletic",
-    ],
-    "Beauty & Health": [
-      "makeup",
-      "cosmetics",
-      "skincare",
-      "perfume",
-      "cologne",
-      "shampoo",
-      "conditioner",
-      "lotion",
-      "cream",
-      "vitamins",
-      "supplements",
-      "health",
-      "beauty",
-    ],
-    "Books & Media": [
-      "book",
-      "novel",
-      "textbook",
-      "magazine",
-      "dvd",
-      "blu-ray",
-      "cd",
-      "vinyl",
-      "record",
-      "music",
-      "movie",
-      "film",
-    ],
-    Automotive: ["car", "auto", "automotive", "tire", "battery", "oil", "parts", "accessories", "motorcycle", "bike"],
+  // Map various condition descriptions to standard values
+  if (normalized.includes("new") || normalized.includes("sealed")) {
+    return "New"
+  } else if (normalized.includes("like new") || normalized.includes("excellent")) {
+    return "Like New"
+  } else if (normalized.includes("very good") || normalized.includes("good")) {
+    return "Good"
+  } else if (normalized.includes("fair") || normalized.includes("acceptable")) {
+    return "Fair"
+  } else if (normalized.includes("poor") || normalized.includes("damaged")) {
+    return "Poor"
+  } else if (normalized.includes("return") || normalized.includes("ret")) {
+    return "Customer Return"
+  } else if (normalized.includes("refurb") || normalized.includes("renewed")) {
+    return "Refurbished"
   }
 
-  for (const [category, keywords] of Object.entries(categories)) {
-    if (keywords.some((keyword) => lowerDesc.includes(keyword))) {
-      return category
-    }
-  }
+  return "Unknown"
+}
 
-  return "Other"
+export function parsePrice(priceStr: string): number {
+  if (!priceStr) return 0
+
+  // Remove currency symbols, commas, and extra spaces
+  const cleaned = priceStr
+    .replace(/[$£€¥₹]/g, "")
+    .replace(/,/g, "")
+    .trim()
+
+  const price = Number.parseFloat(cleaned)
+  return isNaN(price) ? 0 : price
+}
+
+export function formatCurrency(amount: number): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount)
+}
+
+export function formatPercentage(decimal: number): string {
+  return `${(decimal * 100).toFixed(1)}%`
+}
+
+export function truncateText(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text
+  return text.substring(0, maxLength - 3) + "..."
 }

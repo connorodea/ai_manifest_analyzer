@@ -1,15 +1,14 @@
 "use server"
 
-import { parseFixedManifestCSV, validateManifestStructure } from "../utils/fixed-manifest-parser"
-import { performDeepResearchAnalysis, type ComprehensiveAnalysisResult } from "../ai/deep-research-analysis"
+import { performComprehensiveAnalysis, type ComprehensiveAnalysisResult } from "@/lib/ai/deep-research-analysis"
 
 // In-memory storage for demo - in production, use a database
-const comprehensiveManifestStorage = new Map<string, ComprehensiveAnalysisResult>()
+const comprehensiveStorage = new Map<string, ComprehensiveAnalysisResult>()
 
 export async function uploadComprehensiveManifest(formData: FormData) {
-  console.log("🚀 Starting comprehensive manifest upload...")
-
   try {
+    console.log("🚀 Starting comprehensive manifest upload...")
+
     const file = formData.get("file") as File
     if (!file) {
       throw new Error("No file provided")
@@ -21,116 +20,73 @@ export async function uploadComprehensiveManifest(formData: FormData) {
     const content = await file.text()
     console.log(`📄 File content length: ${content.length} characters`)
 
-    // Parse manifest
-    console.log("🔍 Parsing comprehensive manifest...")
-    const items = await parseFixedManifestCSV(content)
-    console.log(`✅ Parsed ${items.length} items`)
+    // Perform comprehensive analysis
+    const analysis = await performComprehensiveAnalysis(content, file.name)
 
-    // Validate structure
-    console.log("✅ Validating manifest structure...")
-    const validation = validateManifestStructure(items)
+    // Store the analysis
+    comprehensiveStorage.set(analysis.manifestId, analysis)
 
-    if (!validation.isValid) {
-      throw new Error(`Manifest validation failed: ${validation.issues.join(", ")}`)
-    }
-
-    console.log(`✅ Validation passed: ${validation.itemCount} items valid`)
-
-    // Perform comprehensive AI analysis with deep research
-    console.log("🤖 Starting comprehensive AI analysis with deep research...")
-    const analysisResult = await performDeepResearchAnalysis(items, file.name)
-    console.log("✅ Comprehensive AI analysis completed")
-
-    // Store result
-    comprehensiveManifestStorage.set(analysisResult.manifestId, analysisResult)
-    console.log(`💾 Stored comprehensive manifest: ${analysisResult.manifestId}`)
+    console.log(`✅ Comprehensive analysis completed and stored: ${analysis.manifestId}`)
 
     return {
       success: true,
-      manifestId: analysisResult.manifestId,
-      result: analysisResult,
+      result: analysis,
     }
   } catch (error) {
-    console.error("❌ Comprehensive manifest upload failed:", error)
+    console.error("❌ Comprehensive upload failed:", error)
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Unknown error occurred",
+      error: error instanceof Error ? error.message : "Upload failed",
     }
   }
 }
 
 export async function getComprehensiveManifestById(id: string): Promise<ComprehensiveAnalysisResult> {
   try {
-    const manifest = comprehensiveManifestStorage.get(id)
-    if (!manifest) {
-      throw new Error(`Comprehensive manifest not found: ${id}`)
+    const analysis = comprehensiveStorage.get(id)
+    if (!analysis) {
+      throw new Error("Comprehensive analysis not found")
     }
-    return manifest
+
+    return analysis
   } catch (error) {
-    console.error("❌ Error getting comprehensive manifest:", error)
+    console.error("Error getting comprehensive manifest:", error)
     throw error
   }
 }
 
-export async function getAllComprehensiveManifests(userId: string): Promise<ComprehensiveAnalysisResult[]> {
+export async function getAllComprehensiveManifests(userId = "demo_user") {
   try {
-    // In production, filter by userId
-    const manifests = Array.from(comprehensiveManifestStorage.values())
-    console.log(`📋 Retrieved ${manifests.length} comprehensive manifests for user ${userId}`)
-    return manifests
+    const userAnalyses = Array.from(comprehensiveStorage.values())
+      .filter(() => true) // In production, filter by userId
+      .map((analysis) => ({
+        id: analysis.manifestId,
+        fileName: analysis.fileName,
+        uploadDate: analysis.uploadDate,
+        processingTime: analysis.processingTime,
+        validItems: analysis.validItems,
+        totalRetailValue: analysis.totalRetailValue,
+        expectedProfit: analysis.manifestInsights.executiveSummary.expectedProfit,
+        averageROI: analysis.manifestInsights.executiveSummary.averageROI,
+        recommendedAction: analysis.manifestInsights.executiveSummary.recommendedAction,
+        confidenceScore: analysis.manifestInsights.executiveSummary.confidenceScore,
+      }))
+      .sort((a, b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime())
+
+    return userAnalyses
   } catch (error) {
-    console.error("❌ Error getting comprehensive manifests:", error)
+    console.error("Error getting all comprehensive manifests:", error)
     return []
   }
 }
 
-export async function deleteComprehensiveManifest(manifestId: string) {
+export async function deleteComprehensiveManifest(manifestId: string): Promise<boolean> {
   try {
-    const deleted = comprehensiveManifestStorage.delete(manifestId)
-    if (deleted) {
-      console.log(`🗑️ Deleted comprehensive manifest: ${manifestId}`)
-      return { success: true }
-    } else {
-      throw new Error(`Comprehensive manifest not found: ${manifestId}`)
-    }
+    const deleted = comprehensiveStorage.delete(manifestId)
+    console.log(`🗑️ Comprehensive manifest ${manifestId} ${deleted ? "deleted" : "not found"}`)
+    return deleted
   } catch (error) {
-    console.error("❌ Error deleting comprehensive manifest:", error)
-    return { success: false, error: error instanceof Error ? error.message : "Unknown error" }
-  }
-}
-
-export async function getComprehensiveManifestSummary(userId: string) {
-  try {
-    const manifests = await getAllComprehensiveManifests(userId)
-
-    const summary = {
-      totalManifests: manifests.length,
-      totalItems: manifests.reduce((sum, m) => sum + m.totalItems, 0),
-      totalValue: manifests.reduce((sum, m) => sum + m.executiveSummary.totalRetailValue, 0),
-      totalProfit: manifests.reduce((sum, m) => sum + m.executiveSummary.totalPotentialProfit, 0),
-      averageROI: 0,
-      averageConfidence: 0,
-    }
-
-    if (summary.totalValue > 0) {
-      summary.averageROI = (summary.totalProfit / summary.totalValue) * 100
-    }
-
-    if (manifests.length > 0) {
-      summary.averageConfidence =
-        manifests.reduce((sum, m) => sum + m.executiveSummary.aiConfidence, 0) / manifests.length
-    }
-
-    return summary
-  } catch (error) {
-    console.error("❌ Error getting comprehensive manifest summary:", error)
-    return {
-      totalManifests: 0,
-      totalItems: 0,
-      totalValue: 0,
-      totalProfit: 0,
-      averageROI: 0,
-      averageConfidence: 0,
-    }
+    console.error("Error deleting comprehensive manifest:", error)
+    return false
   }
 }
